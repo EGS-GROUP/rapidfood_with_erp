@@ -330,3 +330,4 @@ export default function GeneralSummaryView({ onNavigate }) {
     </div>
   );
 }
+
