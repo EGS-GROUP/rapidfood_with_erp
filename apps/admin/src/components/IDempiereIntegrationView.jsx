@@ -26,30 +26,50 @@ export default function IDempiereIntegrationView() {
     const startTime = Date.now();
     try {
       const url = AuthService.buildUrl(baseUrl, '/api/v1/auth/tokens', { mode: proxyMode });
+      const validPassword = session?.password || 'GardenAdmin';
+      const validUserName = session?.userName || 'admin @ gardenworld.com';
+
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
-          userName: session?.userName || 'admin @ gardenworld.com',
-          password: '***',
+          userName: validUserName,
+          password: validPassword,
           parameters: {
-            clientId: session?.clientId || 11,
-            roleId: session?.roleId || 102,
-            organizationId: session?.organizationId || 11,
-            warehouseId: session?.warehouseId || 103,
+            clientId: Number(session?.clientId || 11),
+            roleId: Number(session?.roleId || 102),
+            organizationId: Number(session?.organizationId || 11),
+            warehouseId: Number(session?.warehouseId || 103),
             language: session?.language || 'en_US'
           }
         })
       });
 
       const duration = Date.now() - startTime;
-      setPingResult({
-        ok: res.ok,
-        status: res.status,
-        statusText: res.statusText,
-        latency: `${duration} ms`,
-        time: new Date().toLocaleTimeString()
-      });
+      const nowStr = new Date().toLocaleTimeString();
+
+      if (res.ok) {
+        setPingResult({
+          ok: true,
+          status: '200 (OK - Conexión Exitosa)',
+          statusText: 'Autenticación iDempiere respondida correctamente',
+          latency: `${duration} ms`,
+          time: nowStr
+        });
+      } else {
+        const errorData = await res.json().catch(() => null);
+        const detail = errorData?.detail || errorData?.message || res.statusText || '';
+        setPingResult({
+          ok: false,
+          status: `${res.status} (${detail})`,
+          statusText: detail,
+          latency: `${duration} ms`,
+          time: nowStr
+        });
+      }
     } catch (err) {
       const duration = Date.now() - startTime;
       setPingResult({

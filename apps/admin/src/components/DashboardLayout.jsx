@@ -6,6 +6,8 @@ import IDempiereIntegrationView from './IDempiereIntegrationView';
 import BurgerCatalogView from './BurgerCatalogView';
 import CustomerMetricsView from './CustomerMetricsView';
 import DatabaseStatusView from './DatabaseStatusView';
+import ProfileConfigView from './ProfileConfigView';
+import TokenInfoModal from './TokenInfoModal';
 
 export default function DashboardLayout() {
   const { session, logout } = useAuth();
@@ -13,6 +15,7 @@ export default function DashboardLayout() {
   // Vista activa: 'summary' | 'catalog' | 'orders' | 'customers' | 'database' | 'idempiere' | 'profile'
   const [activeView, setActiveView] = useState('summary');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
 
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
@@ -159,7 +162,7 @@ export default function DashboardLayout() {
 
             <div style={{ display: 'flex', gap: '6px' }}>
               <button
-                onClick={() => setActiveView('idempiere')}
+                onClick={() => setIsTokenModalOpen(true)}
                 style={{
                   flex: 1,
                   backgroundColor: '#ffffff',
@@ -377,10 +380,16 @@ export default function DashboardLayout() {
           )}
 
           {activeView === 'profile' && (
-            <IDempiereIntegrationView />
+            <ProfileConfigView />
           )}
         </main>
       </div>
+
+      {/* Modal Inspector de Sesión iDempiere ERP REST (Exacto a Imagen 1) */}
+      <TokenInfoModal
+        isOpen={isTokenModalOpen}
+        onClose={() => setIsTokenModalOpen(false)}
+      />
     </div>
   );
 }

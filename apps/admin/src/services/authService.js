@@ -8,6 +8,7 @@
 
 const STORAGE_KEY = 'idempiere_auth_session';
 const CONFIG_KEY = 'idempiere_api_config';
+const PROFILE_CONFIG_KEY = 'idempiere_profile_config';
 
 export const DEFAULT_DEMO_CONFIG = {
   baseUrl: 'https://test.idempiere.org:443',
@@ -18,7 +19,20 @@ export const DEFAULT_DEMO_CONFIG = {
     roleId: 102,
     organizationId: 11,
     warehouseId: 103,
-    language: 'en_US'
+    language: 'es_PE'
+  }
+};
+
+export const DEFAULT_PROFILE_CONFIG = {
+  baseUrl: 'https://test.idempiere.org:443',
+  useCorsProxy: true,
+  assistedMultiTenant: false, // false = 1 paso directo, true = 2 pasos asistido
+  defaultParameters: {
+    clientId: 11,
+    roleId: 102,
+    organizationId: 11,
+    warehouseId: 103,
+    language: 'es_PE'
   }
 };
 
@@ -146,15 +160,16 @@ export class AuthService {
 
     const session = {
       token,
-      userId: data.userId ?? data.user?.id ?? null,
+      userId: data.userId ?? data.user?.id ?? 101,
       userName: credentials.userName,
+      password: credentials.password,
       clientId: data.clientId ?? payload.parameters.clientId,
       clientName: data.clientName ?? (payload.parameters.clientId === 11 ? 'GardenWorld' : `Client #${payload.parameters.clientId}`),
       roleId: data.roleId ?? payload.parameters.roleId,
-      roleName: data.roleName ?? (payload.parameters.roleId === 102 ? 'GardenWorld Admin' : `Role #${payload.parameters.roleId}`),
+      roleName: data.roleName ?? (payload.parameters.roleId === 102 ? 'GardenAdmin' : `Role #${payload.parameters.roleId}`),
       orgId: data.organizationId ?? payload.parameters.organizationId,
       organizationId: data.organizationId ?? payload.parameters.organizationId,
-      organizationName: data.organizationName ?? (payload.parameters.organizationId === 11 ? 'HQ' : `Org #${payload.parameters.organizationId}`),
+      organizationName: data.organizationName ?? (payload.parameters.organizationId === 11 ? 'HQ - Headquarters' : `Org #${payload.parameters.organizationId}`),
       warehouseId: data.warehouseId ?? payload.parameters.warehouseId,
       warehouseName: data.warehouseName ?? (payload.parameters.warehouseId === 103 ? 'HQ Warehouse' : `Warehouse #${payload.parameters.warehouseId}`),
       language: payload.parameters.language,
@@ -344,6 +359,27 @@ export class AuthService {
       localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     } catch (e) {
       console.error('Error guardando configuracion:', e);
+    }
+  }
+
+  /**
+   * Configuracion de Perfil de Administrador y parametros ERP (Imagen 4)
+   */
+  static getProfileConfig() {
+    try {
+      const conf = localStorage.getItem(PROFILE_CONFIG_KEY);
+      if (conf) {
+        return { ...DEFAULT_PROFILE_CONFIG, ...JSON.parse(conf) };
+      }
+    } catch {}
+    return { ...DEFAULT_PROFILE_CONFIG };
+  }
+
+  static saveProfileConfig(config) {
+    try {
+      localStorage.setItem(PROFILE_CONFIG_KEY, JSON.stringify(config));
+    } catch (e) {
+      console.error('Error guardando configuracion de perfil:', e);
     }
   }
 }
