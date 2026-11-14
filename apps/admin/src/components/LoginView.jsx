@@ -5,53 +5,63 @@ import { AuthService } from '../services/authService';
 export default function LoginView() {
   const { loginDirect, loginStep1, loginStep2, loading, authError, clearError, proxyMode, setProxyMode } = useAuth();
   
-  // Obtener la configuración del perfil definida en el Panel de Control (Imagen 4)
-  const profileConfig = AuthService.getProfileConfig();
+  // Obtener la configuración del perfil definida en el Panel de Control
+  const profileConfig = AuthService.getProfileConfig() || {};
+  const defaultParams = profileConfig.defaultParameters || {};
+
+  // Modo de Login: Por defecto siempre 'direct' (1 paso garantizado)
+  const [loginMode, setLoginMode] = useState('direct');
 
   // Estados de formulario
   const [userName, setUserName] = useState('admin @ gardenworld.com');
   const [password, setPassword] = useState('GardenAdmin');
   
-  // Estado para modo asistido de 2 pasos (si está habilitado en el perfil)
+  // Estado para modo asistido de 2 pasos
   const [step, setStep] = useState(1);
   const [step1Data, setStep1Data] = useState(null);
+  const [showAdvancedParams, setShowAdvancedParams] = useState(false);
+
   const [selectedContext, setSelectedContext] = useState({
-    clientId: profileConfig.defaultParameters.clientId || 11,
+    clientId: defaultParams.clientId || 11,
     clientName: 'GardenWorld, Inc.',
-    roleId: profileConfig.defaultParameters.roleId || 102,
+    roleId: defaultParams.roleId || 102,
     roleName: 'GardenAdmin',
-    organizationId: profileConfig.defaultParameters.organizationId || 11,
+    organizationId: defaultParams.organizationId || 11,
     organizationName: 'HQ - Headquarters',
-    warehouseId: profileConfig.defaultParameters.warehouseId || 103,
+    warehouseId: defaultParams.warehouseId || 103,
     warehouseName: 'HQ Warehouse',
-    language: profileConfig.defaultParameters.language || 'es_PE'
+    language: defaultParams.language || 'es_PE'
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
 
-    const isAssisted = Boolean(profileConfig.assistedMultiTenant);
-
-    if (!isAssisted) {
-      // 1 SOLO PASO: Autenticación directa utilizando los parámetros configurados en el perfil
+    if (loginMode === 'direct') {
+      // 1 SOLO PASO: Autenticación directa garantizada y validada
       try {
         await loginDirect(
           { userName, password },
-          profileConfig.defaultParameters
+          {
+            clientId: Number(selectedContext.clientId || 11),
+            roleId: Number(selectedContext.roleId || 102),
+            organizationId: Number(selectedContext.organizationId || 11),
+            warehouseId: Number(selectedContext.warehouseId || 103),
+            language: selectedContext.language || 'es_PE'
+          }
         );
       } catch (err) {
-        // Error se gestiona a través de authError
+        // El error se muestra en authError
       }
     } else {
-      // 2 PASOS ASISTIDO MULTI-TENANT: Paso 1 validar credenciales en iDempiere
+      // 2 PASOS ASISTIDO MULTI-TENANT
       if (step === 1) {
         try {
           const res = await loginStep1({ userName, password });
           setStep1Data(res);
           setStep(2);
         } catch (err) {
-          // Error en authError
+          // authError
         }
       } else {
         // Paso 2: Confirmar contexto elegido
@@ -62,7 +72,7 @@ export default function LoginView() {
             selectedContext
           );
         } catch (err) {
-          // Error en authError
+          // authError
         }
       }
     }
@@ -142,6 +152,61 @@ export default function LoginView() {
             <strong>Error de Acceso:</strong> {authError}
           </div>
         )}
+
+        {/* Selector de Modo: 1 Paso Directo vs 2 Pasos Asistido */}
+        <div style={{
+          display: 'flex',
+          backgroundColor: '#201c18',
+          borderRadius: '14px',
+          padding: '4px',
+          marginBottom: '22px',
+          border: '1px solid #332b25'
+        }}>
+          <button
+            type="button"
+            onClick={() => { setLoginMode('direct'); clearError(); setStep(1); }}
+            style={{
+              flex: 1,
+              padding: '9px 12px',
+              borderRadius: '10px',
+              border: 'none',
+              backgroundColor: loginMode === 'direct' ? '#ea580c' : 'transparent',
+              color: '#ffffff',
+              fontSize: '0.8rem',
+              fontWeight: '800',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <span>⚡</span> 1 Paso (Directo)
+          </button>
+          <button
+            type="button"
+            onClick={() => { setLoginMode('assisted'); clearError(); }}
+            style={{
+              flex: 1,
+              padding: '9px 12px',
+              borderRadius: '10px',
+              border: 'none',
+              backgroundColor: loginMode === 'assisted' ? '#ea580c' : 'transparent',
+              color: '#ffffff',
+              fontSize: '0.8rem',
+              fontWeight: '800',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <span>🏢</span> 2 Pasos (Asistido)
+          </button>
+        </div>
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
@@ -302,6 +367,83 @@ export default function LoginView() {
                   {proxyMode === 'corsproxy' && '⚠️ Requiere API Key; corsproxy.io bloqueó el acceso anónimo gratuito con 403.'}
                 </p>
               </div>
+
+              {/* Botón para ver/ajustar parámetros ERP de 1 Paso */}
+              {loginMode === 'direct' && (
+                <div style={{ marginBottom: '22px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedParams(!showAdvancedParams)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#ea580c',
+                      fontSize: '0.74rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: 0
+                    }}
+                  >
+                    <span>{showAdvancedParams ? '▼ Ocultar' : '▶ Configurar'} Parámetros de Tenant ERP</span>
+                    <span style={{ color: '#78716c', fontWeight: '500' }}>
+                      ({selectedContext.clientName} &bull; Org #{selectedContext.organizationId})
+                    </span>
+                  </button>
+
+                  {showAdvancedParams && (
+                    <div style={{
+                      marginTop: '10px',
+                      backgroundColor: '#1c1917',
+                      border: '1px solid #332b25',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '8px'
+                    }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.68rem', color: '#a8a29e', marginBottom: '2px' }}>Client ID:</label>
+                        <input
+                          type="number"
+                          value={selectedContext.clientId}
+                          onChange={(e) => setSelectedContext({ ...selectedContext, clientId: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #44403c', background: '#0c0a09', color: '#fff', fontSize: '0.78rem' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.68rem', color: '#a8a29e', marginBottom: '2px' }}>Role ID:</label>
+                        <input
+                          type="number"
+                          value={selectedContext.roleId}
+                          onChange={(e) => setSelectedContext({ ...selectedContext, roleId: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #44403c', background: '#0c0a09', color: '#fff', fontSize: '0.78rem' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.68rem', color: '#a8a29e', marginBottom: '2px' }}>Org ID:</label>
+                        <input
+                          type="number"
+                          value={selectedContext.organizationId}
+                          onChange={(e) => setSelectedContext({ ...selectedContext, organizationId: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #44403c', background: '#0c0a09', color: '#fff', fontSize: '0.78rem' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.68rem', color: '#a8a29e', marginBottom: '2px' }}>Warehouse ID:</label>
+                        <input
+                          type="number"
+                          value={selectedContext.warehouseId}
+                          onChange={(e) => setSelectedContext({ ...selectedContext, warehouseId: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #44403c', background: '#0c0a09', color: '#fff', fontSize: '0.78rem' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             /* PASO 2 ASISTIDO MULTI-TENANT (Solo si se activó en el Perfil) */
