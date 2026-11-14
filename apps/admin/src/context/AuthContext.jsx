@@ -11,7 +11,13 @@ export function AuthProvider({ children }) {
   // Configuracion global de conectividad iDempiere
   const storedConfig = AuthService.getStoredConfig();
   const [baseUrl, setBaseUrlState] = useState(storedConfig?.baseUrl || DEFAULT_DEMO_CONFIG.baseUrl);
-  const [proxyMode, setProxyModeState] = useState(storedConfig?.proxyConfig?.mode || PROXY_MODES.CORSPROXY);
+  
+  // Migración automática: Si estaba en corsproxy (obsoleto/403) o sin configurar, usar LOCAL por defecto
+  const initialProxyMode = (storedConfig?.proxyConfig?.mode === PROXY_MODES.CORSPROXY || !storedConfig?.proxyConfig?.mode)
+    ? PROXY_MODES.LOCAL
+    : storedConfig.proxyConfig.mode;
+
+  const [proxyMode, setProxyModeState] = useState(initialProxyMode);
   const [customProxyUrl, setCustomProxyUrlState] = useState(storedConfig?.proxyConfig?.customUrl || '');
 
   const persistConfig = (newBaseUrl, newProxyMode, newCustomProxy) => {

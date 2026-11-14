@@ -122,3 +122,4 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
   - Rediseño simplificado de la pantalla de login *"Tasty Bites • Central"* (Imagen 3).
   - Implementación de la vista *"Perfil de Administrador & Configuración ERP"* con conmutador de modo 1 paso vs. 2 pasos y aprovisionamiento de catálogo (Imagen 4).
   - Creación de `AGENTS.md` y `ARCHITECTURE.md`.
+

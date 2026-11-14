@@ -26,6 +26,7 @@ export const DEFAULT_DEMO_CONFIG = {
 export const DEFAULT_PROFILE_CONFIG = {
   baseUrl: 'https://test.idempiere.org:443',
   useCorsProxy: true,
+  proxyMode: 'local',
   assistedMultiTenant: false, // false = 1 paso directo, true = 2 pasos asistido
   defaultParameters: {
     clientId: 11,
@@ -37,8 +38,9 @@ export const DEFAULT_PROFILE_CONFIG = {
 };
 
 export const PROXY_MODES = {
-  NONE: 'none',
   LOCAL: 'local',
+  NONE: 'none',
+  ALLORIGINS: 'allorigins',
   CORSPROXY: 'corsproxy',
   CUSTOM: 'custom'
 };
@@ -59,15 +61,24 @@ export class AuthService {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const targetUrl = `${cleanBase}${cleanEndpoint}`;
 
-    const mode = proxyConfig.mode || PROXY_MODES.NONE;
+    // Compatibilidad si proxyConfig es string u objeto
+    const mode = (typeof proxyConfig === 'string' ? proxyConfig : proxyConfig?.mode) || PROXY_MODES.LOCAL;
 
     switch (mode) {
       case PROXY_MODES.LOCAL:
         return `/api/idempiere-proxy?target=${encodeURIComponent(targetUrl)}`;
+      case PROXY_MODES.ALLORIGINS:
+        return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
       case PROXY_MODES.CORSPROXY:
-        return `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+        if (proxyConfig?.apiKey) {
+          return `https://corsproxy.io/?key=${encodeURIComponent(proxyConfig.apiKey)}&url=${encodeURIComponent(targetUrl)}`;
+        }
+        // Fallback transparente: corsproxy.io sin API key devuelve HTTP 403 (keyless_legacy_url).
+        // Usamos el Proxy Local como fallback seguro.
+        console.warn('corsproxy.io requiere API Key; conmutando automáticamente al Proxy Local backend.');
+        return `/api/idempiere-proxy?target=${encodeURIComponent(targetUrl)}`;
       case PROXY_MODES.CUSTOM:
-        if (proxyConfig.customUrl) {
+        if (proxyConfig?.customUrl) {
           const prefix = proxyConfig.customUrl.endsWith('?') 
             ? proxyConfig.customUrl 
             : `${proxyConfig.customUrl}?target=`;

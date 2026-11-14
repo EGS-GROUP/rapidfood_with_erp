@@ -23,9 +23,11 @@ export default function ProfileConfigView() {
 
   // Guardar configuración
   const handleSave = () => {
-    AuthService.saveProfileConfig(profileConfig);
+    const mode = profileConfig.proxyMode || proxyMode || 'local';
+    const updated = { ...profileConfig, proxyMode: mode, useCorsProxy: mode !== 'none' };
+    AuthService.saveProfileConfig(updated);
     setBaseUrl(profileConfig.baseUrl);
-    setProxyMode(profileConfig.useCorsProxy ? 'corsproxy' : 'none');
+    setProxyMode(mode);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
@@ -42,8 +44,9 @@ export default function ProfileConfigView() {
     setIsTestingServer(true);
     setServerTestStatus(null);
     try {
+      const mode = profileConfig.proxyMode || proxyMode || 'local';
       const url = AuthService.buildUrl(profileConfig.baseUrl, '/api/v1/auth/tokens', {
-        mode: profileConfig.useCorsProxy ? 'corsproxy' : 'none'
+        mode: mode
       });
       const res = await fetch(url, {
         method: 'POST',
@@ -243,14 +246,34 @@ export default function ProfileConfigView() {
               />
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#475569', cursor: 'pointer', marginBottom: '12px' }}>
-              <input
-                type="checkbox"
-                checked={profileConfig.useCorsProxy}
-                onChange={(e) => setProfileConfig({ ...profileConfig, useCorsProxy: e.target.checked })}
-              />
-              <span>Habilitar Proxy CORS para peticiones HTTP/REST</span>
-            </label>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>
+                Modo de Proxy / Bypass CORS:
+              </label>
+              <select
+                value={profileConfig.proxyMode || proxyMode || 'local'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setProfileConfig({ ...profileConfig, proxyMode: val, useCorsProxy: val !== 'none' });
+                  setProxyMode(val);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#f8fafc',
+                  fontSize: '0.78rem',
+                  fontWeight: '600',
+                  color: '#0f172a'
+                }}
+              >
+                <option value="local">🛡️ Opción 2: Proxy Local Backend (/api/idempiere-proxy) [Recomendado]</option>
+                <option value="none">⚡ Opción 1: Sin Proxy (Conexión Directa)</option>
+                <option value="allorigins">🌍 Opción 3: Proxy Público AllOrigins (Gratuito)</option>
+                <option value="corsproxy">🔑 Opción 4: Proxy corsproxy.io (Requiere API Key)</option>
+              </select>
+            </div>
           </div>
 
           <div>

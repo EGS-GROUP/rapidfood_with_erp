@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { AuthService } from '../services/authService';
 
 export default function LoginView() {
-  const { loginDirect, loginStep1, loginStep2, loading, authError, clearError } = useAuth();
+  const { loginDirect, loginStep1, loginStep2, loading, authError, clearError, proxyMode, setProxyMode } = useAuth();
   
   // Obtener la configuración del perfil definida en el Panel de Control (Imagen 4)
   const profileConfig = AuthService.getProfileConfig();
@@ -230,6 +230,77 @@ export default function LoginView() {
                   />
                   <span style={{ fontSize: '1rem', color: '#94a3b8' }}>🔒</span>
                 </div>
+              </div>
+
+              {/* Campo 3: Selector de Proxy CORS (Bypass de errores 403 / CORS) */}
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '8px'
+                }}>
+                  <label style={{
+                    fontSize: '0.72rem',
+                    fontWeight: '800',
+                    color: '#a3a3a3',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em'
+                  }}>
+                    MODO DE PROXY / BYPASS CORS
+                  </label>
+                  <span style={{
+                    fontSize: '0.68rem',
+                    color: proxyMode === 'local' ? '#10b981' : (proxyMode === 'none' ? '#38bdf8' : '#f59e0b'),
+                    fontWeight: '700'
+                  }}>
+                    {proxyMode === 'local' && '● Recomendado'}
+                    {proxyMode === 'none' && '● Directo'}
+                    {proxyMode === 'allorigins' && '● Libre'}
+                    {proxyMode === 'corsproxy' && '● Requiere Key'}
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  backgroundColor: '#edf2f7',
+                  borderRadius: '12px',
+                  padding: '10px 14px',
+                  border: '1px solid #cbd5e1'
+                }}>
+                  <span style={{ fontSize: '1.1rem', marginRight: '10px' }}>🌐</span>
+                  <select
+                    value={proxyMode}
+                    onChange={(e) => setProxyMode(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      width: '100%',
+                      outline: 'none',
+                      color: '#0f172a',
+                      fontSize: '0.86rem',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="local">🛡️ Opción 2: Proxy Local Backend (/api/idempiere-proxy) [Recomendado]</option>
+                    <option value="none">⚡ Opción 1: Sin Proxy (Conexión Directa)</option>
+                    <option value="allorigins">🌍 Opción 3: Proxy Público AllOrigins (Gratuito)</option>
+                    <option value="corsproxy">🔑 Opción 4: Proxy corsproxy.io (Requiere API Key)</option>
+                  </select>
+                </div>
+                <p style={{
+                  fontSize: '0.7rem',
+                  color: '#78716c',
+                  margin: '6px 0 0 2px',
+                  lineHeight: '1.3'
+                }}>
+                  {proxyMode === 'local' && '✓ Enruta por el backend Node.js local. Bypasea CORS y evita el error 403 de proxies externos.'}
+                  {proxyMode === 'none' && '• Conecta directamente a iDempiere (puede fallar si el navegador bloquea CORS).'}
+                  {proxyMode === 'allorigins' && '• Enruta a través de AllOrigins (proxy público abierto sin clave).'}
+                  {proxyMode === 'corsproxy' && '⚠️ Requiere API Key; corsproxy.io bloqueó el acceso anónimo gratuito con 403.'}
+                </p>
               </div>
             </>
           ) : (

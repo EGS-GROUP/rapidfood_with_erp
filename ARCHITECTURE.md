@@ -215,3 +215,4 @@ El proyecto está preparado para compilación y despliegue automatizado mediante
 1. **Etapa de Construcción:** Instala dependencias y compila cada frontend (`build:ecommerce`, `build:pwa`, `build:admin`).
 2. **Etapa de Sincronización:** Copia los artefactos a `server/public`.
 3. **Etapa de Ejecución:** Lanza el proceso Node.js en modo producción (`CMD ["npm", "start"]`), sirviendo las 3 capas bajo un único puerto HTTP expuesto.
+
