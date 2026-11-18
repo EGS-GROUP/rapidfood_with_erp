@@ -155,11 +155,15 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
       - `DatabaseStatusView.jsx` con métricas en tiempo real y botón de sincronización global.
     - Reorganización del layout y sidebar en `DashboardLayout.jsx` con grupos "OPERACIONES & VENTAS", "CATÁLOGOS ERP • SQLITE" y "SISTEMA & CONECTIVIDAD", junto con toasts reactivos.
   - Verificación exitosa del pipeline de compilación `npm run build:all`.
-- **2026-11-17 (v1.4.1)**:
-  - Corrección de despliegue en la nube (Docker / Dokploy en Linux ARM64 / Oracle Cloud):
-    - Actualización de imagen base a `node:22-alpine` en todas las fases del `Dockerfile` para cumplir el requerimiento de motor Node `>=22` de `better-sqlite3`.
-    - Inclusión de herramientas de compilación C++ nativas (`python3`, `make`, `g++`) en la etapa `runner` vía `RUN apk add --no-cache python3 make g++`, permitiendo la correcta compilación nativa de `better-sqlite3` con `node-gyp`.
-    - Limpieza de dependencias en `server/package.json` (`mysql2` removido, `better-sqlite3: ^13.1.1`).
-    - Verificación y recompilación global exitosa con `npm run build:all`.
+- **2026-11-17 (v1.5)**:
+  - Réplica fiel del **Sidebar / Navbar colapsable** basado en referencias de diseño (`navbar-abierto.html`, `navbar-colapsado.html` e imágenes 1 y 2):
+    - Componente modular `SidebarNavbar.jsx` con soporte bidireccional:
+      - **Modo Abierto / Descolapsado (`240px`):** Company Switcher con logo verde lima `{}` ("Calzados Sh... / Demo"), botón `PanelLeftClose`, secciones temáticas (*General, Comercial, Operaciones, Finanzas, Sistema*), badges numéricos (*1/5*), chevrons de expansión y footer con *Ayuda y soporte* y selector de usuario.
+      - **Modo Colapsado (`56px`):** Cabecera de 96px con logo `{}` centrado, botón `PanelLeftOpen`, botones cuadrados centrados de 40x40px, badges flotantes en la esquina superior derecha y avatares compactos.
+    - Iconografía vectorial exacta extraída de los assets Lucide & Phosphor:
+      - `PanelLeftClose`, `PanelLeftOpen`, `FirstStepsIcon` (Portapapeles), `HomeIcon` (Inicio activo), `StarIcon` (Favoritos), `ContactsIcon` (Contactos), `SalesIcon` (Ventas), `PurchasesIcon` (Compras), `InventoryIcon` (Inventario), `FinanceIcon` (Finanzas), `AiAgentIcon` (Enchufe / IA), `SettingsIcon` (Engranaje), `HeadphonesIcon` (Soporte) y `UserIcon` (Usuario).
+    - Persistencia de estado en `localStorage` (`sidebar_collapsed`).
+    - Margen reactivo fluido en el área de trabajo principal (`marginLeft: 240px` vs `56px`).
+    - Verificación y compilación global exitosa con `npm run build:all`.
 
 
