@@ -1,139 +1,239 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AuthService, DEFAULT_DEMO_CONFIG, PROXY_MODES } from '../services/authService';
+import {
+  DEFAULT_GARDENWORLD_PARAMS,
+  loginDirect as serviceLoginDirect,
+  requestContextStep1 as serviceRequestContextStep1,
+  completeLoginStep2 as serviceCompleteLoginStep2,
+  saveSession,
+  loadSession,
+  clearSession,
+  STORAGE_SESSION_KEY
+} from '../services/idempiereAuthService';
+import { AuthService, DEFAULT_PROFILE_CONFIG } from '../services/authService';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(() => AuthService.getSession());
-  const [loading, setLoading] = useState(false);
+  // Inicialización de sesión desde almacenamiento persistente
+  const [session, setSession] = useState(() => {
+    return loadSession() || AuthService.getSession();
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
 
-  // Configuracion global de conectividad iDempiere
-  const storedConfig = AuthService.getStoredConfig();
-  const [baseUrl, setBaseUrlState] = useState(storedConfig?.baseUrl || DEFAULT_DEMO_CONFIG.baseUrl);
-  
-  // Migración automática: Si estaba en corsproxy (obsoleto/403) o sin configurar, usar LOCAL por defecto
-  const initialProxyMode = (storedConfig?.proxyConfig?.mode === PROXY_MODES.CORSPROXY || !storedConfig?.proxyConfig?.mode)
-    ? PROXY_MODES.LOCAL
-    : storedConfig.proxyConfig.mode;
+  // Modalidad de autenticación: 'direct' (1 Paso) | 'assisted' (2 Pasos)
+  const [loginMode, setLoginMode] = useState('direct');
 
-  const [proxyMode, setProxyModeState] = useState(initialProxyMode);
-  const [customProxyUrl, setCustomProxyUrlState] = useState(storedConfig?.proxyConfig?.customUrl || '');
+  // Modo de conexión: 'proxy' (Backend Local/Cloud) | 'direct' (REST Directo al ERP)
+  const [connectionMode, setConnectionMode] = useState('proxy');
 
-  const persistConfig = (newBaseUrl, newProxyMode, newCustomProxy) => {
-    AuthService.saveStoredConfig({
-      baseUrl: newBaseUrl,
-      proxyConfig: {
-        mode: newProxyMode,
-        customUrl: newCustomProxy
-      }
-    });
+  // URL Base editable de iDempiere (normalizada)
+  const [erpBaseUrl, setErpBaseUrlState] = useState(() => {
+    const raw = session?.erpBaseUrl || session?.baseUrl || DEFAULT_GARDENWORLD_PARAMS.erpBaseUrl;
+    return (raw || '').replace(/:443$/, '');
+  });
+
+  const setErpBaseUrl = (url) => {
+    const clean = (url || '').replace(/:443$/, '');
+    setErpBaseUrlState(clean);
   };
 
-  const setBaseUrl = (url) => {
-    setBaseUrlState(url);
-    persistConfig(url, proxyMode, customProxyUrl);
-  };
-
-  const setProxyMode = (mode) => {
-    setProxyModeState(mode);
-    persistConfig(baseUrl, mode, customProxyUrl);
-  };
-
-  const setCustomProxyUrl = (url) => {
-    setCustomProxyUrlState(url);
-    persistConfig(baseUrl, proxyMode, url);
-  };
-
-  // Re-validar persistencia al inicio
+  // Sincronización persistente
   useEffect(() => {
-    const current = AuthService.getSession();
-    if (current && (!session || session.token !== current.token)) {
-      setSession(current);
+    if (session && session.token) {
+      saveSession(session);
+      AuthService.saveSession(session);
+    } else {
+      clearSession();
+      AuthService.clearSession();
     }
-  }, []);
+  }, [session]);
 
-  const getActiveOptions = useCallback(() => {
+  /**
+   * Construye el objeto unificado de sesión
+   */
+  const buildNormalizedSession = (authData, credentials, connMode) => {
+    const params = authData.parameters || credentials.parameters || {};
+    const normOrgId = Number(params.organizationId ?? params.orgId ?? 11);
+    const normClientId = Number(params.clientId ?? 11);
+    const normRoleId = Number(params.roleId ?? 102);
+    const normWarehouseId = Number(params.warehouseId ?? 103);
+    const normLanguage = params.language || 'es_PE';
+
     return {
-      baseUrl,
-      proxyConfig: {
-        mode: proxyMode,
-        customUrl: customProxyUrl
-      }
+      token: authData.token,
+      tokenType: authData.tokenType || 'Bearer',
+      userId: authData.userId || 100,
+      userName: authData.userName || credentials.userName || 'admin @ gardenworld.com',
+      password: credentials.password || authData.password || 'GardenAdmin',
+      // Contexto canónico exigido por el negocio
+      clientId: normClientId,
+      roleId: normRoleId,
+      organizationId: normOrgId,
+      orgId: normOrgId, // Compatibilidad retroactiva
+      warehouseId: normWarehouseId,
+      language: normLanguage,
+      // Metadatos descriptivos
+      clientName: authData.client?.name || 'GardenWorld, Inc.',
+      roleName: authData.role?.name || (normRoleId === 102 ? 'GardenAdmin' : `Rol #${normRoleId}`),
+      orgName: authData.organization?.name || `HQ Org #${normOrgId}`,
+      warehouseName: authData.warehouse?.name || `Almacén #${normWarehouseId}`,
+      simulated: Boolean(authData.simulated),
+      simulatedReason: authData.simulatedReason,
+      erpBaseUrl: credentials.erpBaseUrl || erpBaseUrl,
+      baseUrl: credentials.erpBaseUrl || erpBaseUrl, // Compatibilidad
+      connectionMode: connMode,
+      parameters: {
+        clientId: normClientId,
+        roleId: normRoleId,
+        organizationId: normOrgId,
+        warehouseId: normWarehouseId,
+        language: normLanguage
+      },
+      audit: authData.audit || {
+        endpointCalled: '/api/v1/auth/tokens',
+        connectionMode: connMode,
+        timestamp: new Date().toISOString()
+      },
+      loginTime: new Date().toISOString(),
+      loginAt: new Date().toISOString()
     };
-  }, [baseUrl, proxyMode, customProxyUrl]);
+  };
 
-  // Modalidad 1: Login Directo / 1 Paso
-  const loginDirect = async (credentials, parameters) => {
-    setLoading(true);
+  /**
+   * Modalidad 1: Login Directo en 1 Paso
+   * Soporta firma sobrecargada:
+   * loginDirect(credentials, overrideConnMode) O loginDirect(credentials, parameters, options)
+   */
+  const loginDirect = async (credentials, p2, p3) => {
+    setIsLoading(true);
     setAuthError(null);
+
+    let activeCreds = { ...credentials };
+    let activeMode = connectionMode;
+
+    if (p2 && typeof p2 === 'object') {
+      // Firma: loginDirect({ userName, password }, parameters, options)
+      activeCreds.parameters = p2;
+      if (p3?.baseUrl) activeCreds.erpBaseUrl = p3.baseUrl;
+      if (p3?.proxyConfig?.mode) {
+        activeMode = p3.proxyConfig.mode === 'none' ? 'direct' : 'proxy';
+      }
+    } else if (typeof p2 === 'string') {
+      activeMode = p2;
+    }
+
+    if (!activeCreds.erpBaseUrl) {
+      activeCreds.erpBaseUrl = erpBaseUrl;
+    }
+
     try {
-      const newSession = await AuthService.loginDirect(credentials, parameters, getActiveOptions());
+      const authData = await serviceLoginDirect(activeCreds, activeMode);
+      const newSession = buildNormalizedSession(authData, activeCreds, activeMode);
       setSession(newSession);
-      return newSession;
+      setIsLoading(false);
+      return { success: true, session: newSession, ...newSession };
     } catch (err) {
-      setAuthError(err.message);
+      setIsLoading(false);
+      const message = err.message || 'Error al autenticar con iDempiere ERP';
+      setAuthError(message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Modalidad 2 - Paso 1: Descubrimiento
-  const loginStep1 = async (credentials) => {
-    setLoading(true);
+  /**
+   * Modalidad 2 (Paso 1): Consulta de Contexto Multitenant
+   */
+  const requestContextStep1 = async (credentials, overrideConnMode) => {
+    setIsLoading(true);
     setAuthError(null);
+    const activeMode = overrideConnMode || connectionMode;
+    const creds = { ...credentials, erpBaseUrl: credentials.erpBaseUrl || erpBaseUrl };
+
     try {
-      const step1Result = await AuthService.loginStep1(credentials, getActiveOptions());
-      return step1Result;
+      const result = await serviceRequestContextStep1(creds, activeMode);
+      setIsLoading(false);
+      return { success: true, authenticated: false, contextData: result, ...result };
     } catch (err) {
-      setAuthError(err.message);
+      setIsLoading(false);
+      const message = err.message || 'Error al consultar contexto multitenant';
+      setAuthError(message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Modalidad 2 - Paso 2: Confirmar Contexto
-  const loginStep2 = async (credentials, tempToken, selectedContext) => {
-    setLoading(true);
+  /**
+   * Modalidad 2 (Paso 2): Confirmación de Contexto y Emisión de Token
+   */
+  const completeLoginStep2 = async (credentials, selectedContext, overrideConnMode) => {
+    setIsLoading(true);
     setAuthError(null);
+    const activeMode = overrideConnMode || connectionMode;
+    const creds = { ...credentials, erpBaseUrl: credentials.erpBaseUrl || erpBaseUrl };
+
     try {
-      const newSession = await AuthService.loginStep2(credentials, tempToken, selectedContext, getActiveOptions());
+      const authData = await serviceCompleteLoginStep2(creds, selectedContext, activeMode);
+      const newSession = buildNormalizedSession(
+        authData,
+        { ...creds, parameters: selectedContext },
+        activeMode
+      );
       setSession(newSession);
-      return newSession;
+      setIsLoading(false);
+      return { success: true, session: newSession, ...newSession };
     } catch (err) {
-      setAuthError(err.message);
+      setIsLoading(false);
+      const message = err.message || 'Error al completar inicio de sesión en iDempiere';
+      setAuthError(message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
+  /**
+   * Cierre de sesión y purga de almacenamiento local
+   */
   const logout = () => {
-    AuthService.logout();
     setSession(null);
     setAuthError(null);
+    clearSession();
+    AuthService.clearSession();
   };
 
   const isAuthenticated = Boolean(session && session.token);
 
   const value = {
+    auth: session,
     session,
     isAuthenticated,
-    loading,
+    loading: isLoading,
+    isLoading,
     authError,
-    baseUrl,
-    setBaseUrl,
-    proxyMode,
-    setProxyMode,
-    customProxyUrl,
-    setCustomProxyUrl,
+    setAuthError,
+    clearError: () => setAuthError(null),
+    loginMode,
+    setLoginMode,
+    connectionMode,
+    setConnectionMode,
+    proxyMode: connectionMode === 'direct' ? 'none' : 'local',
+    setProxyMode: (mode) => setConnectionMode(mode === 'none' ? 'direct' : 'proxy'),
+    baseUrl: erpBaseUrl,
+    setBaseUrl: setErpBaseUrl,
+    erpBaseUrl,
+    setErpBaseUrl,
     loginDirect,
-    loginStep1,
-    loginStep2,
+    requestContextStep1,
+    loginStep1: requestContextStep1, // Alias
+    completeLoginStep2,
+    loginStep2: completeLoginStep2, // Alias
     logout,
-    clearError: () => setAuthError(null)
+    isInspectorOpen,
+    setIsInspectorOpen,
+    isTokenModalOpen,
+    setIsTokenModalOpen,
+    defaultParams: DEFAULT_GARDENWORLD_PARAMS
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -146,4 +246,3 @@ export function useAuth() {
   }
   return context;
 }
-

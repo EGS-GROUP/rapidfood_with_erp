@@ -18,13 +18,14 @@ flowchart TD
 
     subgraph BackendServer ["SERVIDOR CENTRAL & DATAMART"]
         SRV["Express.js Server\n(server/src/app.js)"]
+        AUTH_ROUTER["Módulo Auth REST\n/api/auth/*"]
         PROXY["Proxy Anti-CORS\n/api/idempiere-proxy"]
         SQLITE[("SQLite Datamart Local\n/app/server/data")]
     end
 
     subgraph ERPIntegration ["ERP CORPORATIVO"]
         IDEM["iDempiere REST API v1\n(test.idempiere.org)"]
-        AUTH["/api/v1/auth/tokens\n(POST - Plural)"]
+        AUTH["/api/v1/auth/tokens\n(POST / PUT - Plural)"]
         MODELS["/api/v1/models/c_order\n/api/v1/models/m_product"]
     end
 
@@ -33,6 +34,8 @@ flowchart TD
     ADM -->|Supervisión & Aprobación| SRV
     SRV --> SQLITE
     ADM -->|Auth / Sync Directa| IDEM
+    ADM -->|Auth Proxy / Multi-tenant| AUTH_ROUTER
+    AUTH_ROUTER -->|HTTPS Request Nativo| IDEM
     SRV -->|Forwarding Proxy| PROXY
     PROXY --> IDEM
     IDEM --- AUTH
@@ -85,6 +88,12 @@ flowchart TD
 
 * **Tecnología:** Node.js 24 + Express 4.x + SQLite Datamart.
 * **Estructura de Rutas:**
+  * `POST /api/auth/login`: Autenticación 1-Paso / 2-Pasos hacia iDempiere con validación de `parameters` y fallback Sandbox.
+  * `POST /api/auth/context`: Consulta dinámica multitenant (Paso 1) de Tenants, Roles, Organizaciones y Almacenes.
+  * `POST /api/auth/step2`: Confirmación y emisión de token definitivo vía `PUT /api/v1/auth/tokens`.
+  * `POST /api/auth/verify`: Verificación de tokens Bearer activos.
+  * `GET /api/auth/config`: Parámetros y credenciales predeterminadas de GardenWorld.
+  * `POST /api/auth/test-connection`: Ping y diagnóstico directo a la URL de iDempiere.
   * `GET /api/health`: Healthcheck para orquestadores Dokploy/Docker.
   * `GET /api/products`: Catálogo local de productos.
   * `ALL /api/idempiere-proxy?target=`: Proxy local que reenvía cabeceras y payloads hacia servidores iDempiere eliminando las restricciones de CORS del navegador.
@@ -188,6 +197,7 @@ rapidfood_with_erp/
 │           │   ├── LoginView.jsx              # Login simple "Tasty Bites • Central"
 │           │   ├── DashboardLayout.jsx        # Layout con sidebar modular
 │           │   ├── TokenInfoModal.jsx         # Inspector modal de sesión ERP
+│           │   ├── IdempiereInspectorModal.jsx # Auditoría técnica homologada con laboratorio1
 │           │   ├── GeneralSummaryView.jsx     # KPIs y distribución de clientes
 │           │   ├── OrderManagement.jsx        # Bandeja central de pedidos 3 capas
 │           │   ├── IDempiereIntegrationView.jsx # Diagnóstico y ping ERP en vivo
@@ -196,14 +206,19 @@ rapidfood_with_erp/
 │           │   ├── DatabaseStatusView.jsx     # Estado del Datamart
 │           │   └── ProfileConfigView.jsx      # Configuración 1 paso vs. 2 pasos
 │           ├── context/
-│           │   └── AuthContext.jsx            # Estado global de autenticación
+│           │   └── AuthContext.jsx            # Estado global de autenticación homologado
 │           └── services/
-│               ├── authService.js             # Cliente base iDempiere REST v1
+│               ├── authService.js             # Configuración y utilidades de red
+│               ├── idempiereAuthService.js     # Cliente REST v1 blindado (1-paso, 2-pasos, direct/proxy)
 │               └── idempiereClient.js         # Consumo y sincronización C_Order
 └── server/                    # Servidor Central & Proxy (Express)
     ├── src/
-    │   ├── app.js             # Despachador de rutas / , /app y /admin
-    │   └── routes/api.js      # Endpoint /api/health y /api/idempiere-proxy
+    │   ├── app.js             # Despachador de rutas / , /app, /admin y /api
+    │   ├── routes/
+    │   │   ├── api.js         # Endpoint /api/health y /api/idempiere-proxy
+    │   │   └── auth.js        # Endpoints /api/auth/* homologados con laboratorio1
+    │   └── services/
+    │       └── idempiereService.js # Servicio backend HTTPS nativo con fallback Sandbox
     └── public/                # Directorio donde se sincronizan los 3 builds
 ```
 

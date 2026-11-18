@@ -1,20 +1,33 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { AuthService } from '../services/authService';
+import { DEFAULT_GARDENWORLD_PARAMS } from '../services/idempiereAuthService';
 
 export default function LoginView() {
-  const { loginDirect, loginStep1, loginStep2, loading, authError, clearError, proxyMode, setProxyMode } = useAuth();
+  const {
+    loginDirect,
+    loginStep1,
+    loginStep2,
+    loading,
+    authError,
+    clearError,
+    connectionMode,
+    setConnectionMode,
+    erpBaseUrl,
+    setErpBaseUrl
+  } = useAuth();
   
   // Obtener la configuración del perfil definida en el Panel de Control
   const profileConfig = AuthService.getProfileConfig() || {};
-  const defaultParams = profileConfig.defaultParameters || {};
+  const defaultParams = profileConfig.defaultParameters || DEFAULT_GARDENWORLD_PARAMS.parameters;
 
-  // Modo de Login: Por defecto siempre 'direct' (1 paso garantizado)
+  // Modo de Login: Por defecto 'direct' (1 paso garantizado)
   const [loginMode, setLoginMode] = useState('direct');
 
   // Estados de formulario
-  const [userName, setUserName] = useState('admin @ gardenworld.com');
-  const [password, setPassword] = useState('GardenAdmin');
+  const [userName, setUserName] = useState(DEFAULT_GARDENWORLD_PARAMS.userName);
+  const [password, setPassword] = useState(DEFAULT_GARDENWORLD_PARAMS.password);
+  const [showPassword, setShowPassword] = useState(false);
   
   // Estado para modo asistido de 2 pasos
   const [step, setStep] = useState(1);
@@ -33,6 +46,28 @@ export default function LoginView() {
     language: defaultParams.language || 'es_PE'
   });
 
+  // Rellenar Demo GardenWorld
+  const handleFillDemo = (e) => {
+    e?.preventDefault();
+    setUserName(DEFAULT_GARDENWORLD_PARAMS.userName);
+    setPassword(DEFAULT_GARDENWORLD_PARAMS.password);
+    setSelectedContext({
+      clientId: DEFAULT_GARDENWORLD_PARAMS.parameters.clientId,
+      clientName: 'GardenWorld, Inc.',
+      roleId: DEFAULT_GARDENWORLD_PARAMS.parameters.roleId,
+      roleName: 'GardenWorld Admin',
+      organizationId: DEFAULT_GARDENWORLD_PARAMS.parameters.organizationId,
+      organizationName: 'HQ - Headquarters',
+      warehouseId: DEFAULT_GARDENWORLD_PARAMS.parameters.warehouseId,
+      warehouseName: 'HQ Warehouse',
+      language: DEFAULT_GARDENWORLD_PARAMS.parameters.language
+    });
+    setErpBaseUrl(DEFAULT_GARDENWORLD_PARAMS.erpBaseUrl);
+    clearError();
+    setStep(1);
+    setStep1Data(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
@@ -41,38 +76,69 @@ export default function LoginView() {
       // 1 SOLO PASO: Autenticación directa garantizada y validada
       try {
         await loginDirect(
-          { userName, password },
           {
-            clientId: Number(selectedContext.clientId || 11),
-            roleId: Number(selectedContext.roleId || 102),
-            organizationId: Number(selectedContext.organizationId || 11),
-            warehouseId: Number(selectedContext.warehouseId || 103),
-            language: selectedContext.language || 'es_PE'
-          }
+            userName: userName.trim(),
+            password,
+            parameters: {
+              clientId: Number(selectedContext.clientId || 11),
+              roleId: Number(selectedContext.roleId || 102),
+              organizationId: Number(selectedContext.organizationId || 11),
+              warehouseId: Number(selectedContext.warehouseId || 103),
+              language: selectedContext.language || 'es_PE'
+            },
+            erpBaseUrl
+          },
+          connectionMode
         );
       } catch (err) {
-        // El error se muestra en authError
+        // authError gestionado por el AuthContext
       }
     } else {
       // 2 PASOS ASISTIDO MULTI-TENANT
       if (step === 1) {
         try {
-          const res = await loginStep1({ userName, password });
+          const res = await loginStep1(
+            { userName: userName.trim(), password, erpBaseUrl },
+            connectionMode
+          );
           setStep1Data(res);
+          // Si nos devolvió listas dinámicas, preseleccionar las primeras opciones
+          if (res?.clients?.length > 0) {
+            setSelectedContext(prev => ({
+              ...prev,
+              clientId: res.clients[0].id,
+              clientName: res.clients[0].name,
+              roleId: res.roles?.[0]?.id || prev.roleId,
+              organizationId: res.organizations?.[0]?.id || prev.organizationId,
+              warehouseId: res.warehouses?.[0]?.id || prev.warehouseId
+            }));
+          }
           setStep(2);
         } catch (err) {
-          // authError
+          // authError gestionado por el AuthContext
         }
       } else {
-        // Paso 2: Confirmar contexto elegido
+        // Paso 2: Confirmar contexto elegido y obtener token definitivo
         try {
+          const stageToken = step1Data?.stage1Token || step1Data?.tempToken || step1Data?.token;
           await loginStep2(
-            { userName, password },
-            step1Data?.tempToken,
-            selectedContext
+            {
+              userName: userName.trim(),
+              password,
+              erpBaseUrl,
+              stage1Token: stageToken
+            },
+            {
+              clientId: Number(selectedContext.clientId || 11),
+              roleId: Number(selectedContext.roleId || 102),
+              organizationId: Number(selectedContext.organizationId || 11),
+              warehouseId: Number(selectedContext.warehouseId || 103),
+              language: selectedContext.language || 'es_PE'
+            },
+            connectionMode
           );
         } catch (err) {
-          // authError
+          // authError gestionado por el AuthContext
         }
       }
     }
@@ -95,7 +161,7 @@ export default function LoginView() {
         border: '1px solid #2a2824',
         borderRadius: '28px',
         padding: '44px 36px 36px',
-        maxWidth: '460px',
+        maxWidth: '480px',
         width: '100%',
         boxShadow: '0 30px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(234, 88, 12, 0.05)',
         textAlign: 'center'
@@ -131,7 +197,7 @@ export default function LoginView() {
         <p style={{
           fontSize: '0.85rem',
           color: '#a3a3a3',
-          margin: '0 0 28px 0',
+          margin: '0 0 24px 0',
           lineHeight: '1.4'
         }}>
           Acceso seguro al Panel de Control Corporativo
@@ -143,13 +209,19 @@ export default function LoginView() {
             backgroundColor: 'rgba(239, 68, 68, 0.12)',
             border: '1px solid rgba(239, 68, 68, 0.3)',
             color: '#fca5a5',
-            padding: '10px 14px',
-            borderRadius: '10px',
-            fontSize: '0.78rem',
+            padding: '12px 14px',
+            borderRadius: '12px',
+            fontSize: '0.8rem',
             textAlign: 'left',
-            marginBottom: '20px'
+            marginBottom: '20px',
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'flex-start'
           }}>
-            <strong>Error de Acceso:</strong> {authError}
+            <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+            <div>
+              <strong>Error de Acceso:</strong> {authError}
+            </div>
           </div>
         )}
 
@@ -159,7 +231,7 @@ export default function LoginView() {
           backgroundColor: '#201c18',
           borderRadius: '14px',
           padding: '4px',
-          marginBottom: '22px',
+          marginBottom: '20px',
           border: '1px solid #332b25'
         }}>
           <button
@@ -213,7 +285,7 @@ export default function LoginView() {
           {step === 1 ? (
             <>
               {/* Campo 1: Usuario / Correo Corporativo */}
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '18px' }}>
                 <label style={{
                   display: 'block',
                   fontSize: '0.72rem',
@@ -248,6 +320,7 @@ export default function LoginView() {
                       outline: 'none',
                       color: '#0f172a',
                       fontSize: '0.92rem',
+                      fontFamily: 'inherit',
                       fontWeight: '600'
                     }}
                   />
@@ -255,18 +328,32 @@ export default function LoginView() {
               </div>
 
               {/* Campo 2: Contraseña de Acceso */}
-              <div style={{ marginBottom: '28px' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.72rem',
-                  fontWeight: '800',
-                  color: '#a3a3a3',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  marginBottom: '8px'
-                }}>
-                  CONTRASEÑA DE ACCESO
-                </label>
+              <div style={{ marginBottom: '18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{
+                    fontSize: '0.72rem',
+                    fontWeight: '800',
+                    color: '#a3a3a3',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em'
+                  }}>
+                    CONTRASEÑA DE ACCESO
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ea580c',
+                      fontSize: '0.72rem',
+                      cursor: 'pointer',
+                      fontWeight: '700'
+                    }}
+                  >
+                    {showPassword ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                </div>
 
                 <div style={{
                   display: 'flex',
@@ -276,13 +363,13 @@ export default function LoginView() {
                   padding: '12px 16px',
                   border: '1px solid #cbd5e1'
                 }}>
-                  <span style={{ fontSize: '1rem', marginRight: '10px', color: '#64748b' }}>🔒</span>
+                  <span style={{ fontSize: '1.1rem', marginRight: '10px', color: '#64748b' }}>🔒</span>
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••"
+                    placeholder="••••••••••••"
                     style={{
                       border: 'none',
                       background: 'transparent',
@@ -290,87 +377,72 @@ export default function LoginView() {
                       outline: 'none',
                       color: '#0f172a',
                       fontSize: '0.92rem',
-                      letterSpacing: '0.1em'
+                      fontFamily: 'inherit',
+                      fontWeight: '600'
                     }}
                   />
-                  <span style={{ fontSize: '1rem', color: '#94a3b8' }}>🔒</span>
+                  <span style={{ fontSize: '1.1rem', marginLeft: '10px', color: '#f97316' }}>🔐</span>
                 </div>
               </div>
 
-              {/* Campo 3: Selector de Proxy CORS (Bypass de errores 403 / CORS) */}
-              <div style={{ marginBottom: '24px' }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '8px'
-                }}>
+              {/* Selector de Modo de Conexión (Proxy vs Directo) */}
+              <div style={{
+                marginBottom: '18px',
+                padding: '12px 14px',
+                backgroundColor: '#1c1917',
+                border: '1px solid #332b25',
+                borderRadius: '14px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{
-                    fontSize: '0.72rem',
+                    fontSize: '0.7rem',
                     fontWeight: '800',
-                    color: '#a3a3a3',
+                    color: '#a8a29e',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.06em'
+                    letterSpacing: '0.05em'
                   }}>
-                    MODO DE PROXY / BYPASS CORS
+                    Canal de Conexión ERP
                   </label>
-                  <span style={{
-                    fontSize: '0.68rem',
-                    color: proxyMode === 'local' ? '#10b981' : (proxyMode === 'none' ? '#38bdf8' : '#f59e0b'),
-                    fontWeight: '700'
-                  }}>
-                    {proxyMode === 'local' && '● Recomendado'}
-                    {proxyMode === 'none' && '● Directo'}
-                    {proxyMode === 'allorigins' && '● Libre'}
-                    {proxyMode === 'corsproxy' && '● Requiere Key'}
-                  </span>
-                </div>
-
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  backgroundColor: '#edf2f7',
-                  borderRadius: '12px',
-                  padding: '10px 14px',
-                  border: '1px solid #cbd5e1'
-                }}>
-                  <span style={{ fontSize: '1.1rem', marginRight: '10px' }}>🌐</span>
-                  <select
-                    value={proxyMode}
-                    onChange={(e) => setProxyMode(e.target.value)}
+                  <button
+                    type="button"
+                    onClick={handleFillDemo}
                     style={{
-                      border: 'none',
                       background: 'transparent',
-                      width: '100%',
-                      outline: 'none',
-                      color: '#0f172a',
-                      fontSize: '0.86rem',
+                      border: 'none',
+                      color: '#38bdf8',
+                      fontSize: '0.7rem',
                       fontWeight: '700',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      padding: 0
                     }}
                   >
-                    <option value="local">🛡️ Opción 2: Proxy Local Backend (/api/idempiere-proxy) [Recomendado]</option>
-                    <option value="none">⚡ Opción 1: Sin Proxy (Conexión Directa)</option>
-                    <option value="allorigins">🌍 Opción 3: Proxy Público AllOrigins (Gratuito)</option>
-                    <option value="corsproxy">🔑 Opción 4: Proxy corsproxy.io (Requiere API Key)</option>
-                  </select>
+                    Cargar Demo GardenWorld
+                  </button>
                 </div>
-                <p style={{
-                  fontSize: '0.7rem',
-                  color: '#78716c',
-                  margin: '6px 0 0 2px',
-                  lineHeight: '1.3'
-                }}>
-                  {proxyMode === 'local' && '✓ Enruta por el backend Node.js local. Bypasea CORS y evita el error 403 de proxies externos.'}
-                  {proxyMode === 'none' && '• Conecta directamente a iDempiere (puede fallar si el navegador bloquea CORS).'}
-                  {proxyMode === 'allorigins' && '• Enruta a través de AllOrigins (proxy público abierto sin clave).'}
-                  {proxyMode === 'corsproxy' && '⚠️ Requiere API Key; corsproxy.io bloqueó el acceso anónimo gratuito con 403.'}
-                </p>
+
+                <select
+                  value={connectionMode}
+                  onChange={(e) => setConnectionMode(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    backgroundColor: '#11100e',
+                    border: '1px solid #44403c',
+                    borderRadius: '8px',
+                    color: '#f5f5f4',
+                    fontSize: '0.78rem',
+                    outline: 'none',
+                    fontWeight: '600'
+                  }}
+                >
+                  <option value="proxy">🛡️ Proxy Backend Local (/api/auth/login) [Recomendado]</option>
+                  <option value="direct">⚡ Conexión Directa REST (Navegador a iDempiere)</option>
+                </select>
               </div>
 
               {/* Botón para ver/ajustar parámetros ERP de 1 Paso */}
               {loginMode === 'direct' && (
-                <div style={{ marginBottom: '22px' }}>
+                <div style={{ marginBottom: '20px' }}>
                   <button
                     type="button"
                     onClick={() => setShowAdvancedParams(!showAdvancedParams)}
@@ -423,7 +495,7 @@ export default function LoginView() {
                         />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.68rem', color: '#a8a29e', marginBottom: '2px' }}>Org ID:</label>
+                        <label style={{ display: 'block', fontSize: '0.68rem', color: '#a8a29e', marginBottom: '2px' }}>Org ID (organizationId):</label>
                         <input
                           type="number"
                           value={selectedContext.organizationId}
@@ -446,66 +518,157 @@ export default function LoginView() {
               )}
             </>
           ) : (
-            /* PASO 2 ASISTIDO MULTI-TENANT (Solo si se activó en el Perfil) */
-            <div style={{ marginBottom: '24px' }}>
+            /* PASO 2 ASISTIDO MULTI-TENANT CON SELECTORES DINÁMICOS */
+            <div style={{ marginBottom: '20px' }}>
               <div style={{
                 backgroundColor: '#24211d',
                 border: '1px solid #3d372e',
-                borderRadius: '14px',
+                borderRadius: '16px',
                 padding: '16px',
                 marginBottom: '16px'
               }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#ea580c', textTransform: 'uppercase', marginBottom: '8px' }}>
-                  🏢 Selección de Entidad & Rol (iDempiere Multi-Tenant)
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#ea580c', textTransform: 'uppercase' }}>
+                    🏢 Paso 2: Selección Multitenant
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setStep(1); clearError(); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#a3a3a3',
+                      fontSize: '0.72rem',
+                      cursor: 'pointer',
+                      fontWeight: '700'
+                    }}
+                  >
+                    ← Cambiar Credenciales
+                  </button>
                 </div>
 
+                {/* Selector de Cliente / Tenant */}
                 <div style={{ marginBottom: '10px' }}>
-                  <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px' }}>
-                    Tenant (Client ID):
+                  <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px', fontWeight: '700' }}>
+                    Cliente / Tenant:
                   </label>
-                  <input
-                    type="number"
-                    value={selectedContext.clientId}
-                    onChange={(e) => setSelectedContext({ ...selectedContext, clientId: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #4a4338', background: '#181715', color: '#fff' }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px' }}>
-                    Rol Asignado (Role ID):
-                  </label>
-                  <input
-                    type="number"
-                    value={selectedContext.roleId}
-                    onChange={(e) => setSelectedContext({ ...selectedContext, roleId: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #4a4338', background: '#181715', color: '#fff' }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px' }}>
-                      Org ID:
-                    </label>
+                  {step1Data?.clients?.length > 0 ? (
+                    <select
+                      value={selectedContext.clientId}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        const c = step1Data.clients.find(x => x.id === val);
+                        setSelectedContext(prev => ({ ...prev, clientId: val, clientName: c?.name || prev.clientName }));
+                      }}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff', fontSize: '0.82rem' }}
+                    >
+                      {step1Data.clients.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} (#{c.id})</option>
+                      ))}
+                    </select>
+                  ) : (
                     <input
                       type="number"
-                      value={selectedContext.organizationId}
-                      onChange={(e) => setSelectedContext({ ...selectedContext, organizationId: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #4a4338', background: '#181715', color: '#fff' }}
+                      value={selectedContext.clientId}
+                      onChange={(e) => setSelectedContext({ ...selectedContext, clientId: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff' }}
                     />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px' }}>
-                      Warehouse ID:
-                    </label>
+                  )}
+                </div>
+
+                {/* Selector de Rol */}
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px', fontWeight: '700' }}>
+                    Rol Asignado:
+                  </label>
+                  {step1Data?.roles?.length > 0 ? (
+                    <select
+                      value={selectedContext.roleId}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        const r = step1Data.roles.find(x => x.id === val);
+                        setSelectedContext(prev => ({ ...prev, roleId: val, roleName: r?.name || prev.roleName }));
+                      }}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff', fontSize: '0.82rem' }}
+                    >
+                      {step1Data.roles.map(r => (
+                        <option key={r.id} value={r.id}>{r.name} (#{r.id})</option>
+                      ))}
+                    </select>
+                  ) : (
                     <input
                       type="number"
-                      value={selectedContext.warehouseId}
-                      onChange={(e) => setSelectedContext({ ...selectedContext, warehouseId: Number(e.target.value) })}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #4a4338', background: '#181715', color: '#fff' }}
+                      value={selectedContext.roleId}
+                      onChange={(e) => setSelectedContext({ ...selectedContext, roleId: Number(e.target.value) })}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff' }}
                     />
+                  )}
+                </div>
+
+                {/* Selector de Organización & Almacén */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px', fontWeight: '700' }}>
+                      Organización:
+                    </label>
+                    {step1Data?.organizations?.length > 0 ? (
+                      <select
+                        value={selectedContext.organizationId}
+                        onChange={(e) => setSelectedContext({ ...selectedContext, organizationId: Number(e.target.value) })}
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff', fontSize: '0.8rem' }}
+                      >
+                        {step1Data.organizations.map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="number"
+                        value={selectedContext.organizationId}
+                        onChange={(e) => setSelectedContext({ ...selectedContext, organizationId: Number(e.target.value) })}
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff' }}
+                      />
+                    )}
                   </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px', fontWeight: '700' }}>
+                      Almacén:
+                    </label>
+                    {step1Data?.warehouses?.length > 0 ? (
+                      <select
+                        value={selectedContext.warehouseId}
+                        onChange={(e) => setSelectedContext({ ...selectedContext, warehouseId: Number(e.target.value) })}
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff', fontSize: '0.8rem' }}
+                      >
+                        {step1Data.warehouses.map(w => (
+                          <option key={w.id} value={w.id}>{w.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="number"
+                        value={selectedContext.warehouseId}
+                        onChange={(e) => setSelectedContext({ ...selectedContext, warehouseId: Number(e.target.value) })}
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff' }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Idioma */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.7rem', color: '#a3a3a3', marginBottom: '4px', fontWeight: '700' }}>
+                    Idioma de Sesión:
+                  </label>
+                  <select
+                    value={selectedContext.language}
+                    onChange={(e) => setSelectedContext({ ...selectedContext, language: e.target.value })}
+                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #4a4338', background: '#181715', color: '#fff', fontSize: '0.8rem' }}
+                  >
+                    <option value="es_PE">Español (Perú)</option>
+                    <option value="en_US">English (US)</option>
+                    <option value="es_ES">Español (España)</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -542,7 +705,7 @@ export default function LoginView() {
 
         {/* Pie de Página de Seguridad (Exacto a Imagen 3) */}
         <div style={{
-          marginTop: '32px',
+          marginTop: '28px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

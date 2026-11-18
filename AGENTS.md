@@ -122,4 +122,9 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
   - Rediseño simplificado de la pantalla de login *"Tasty Bites • Central"* (Imagen 3).
   - Implementación de la vista *"Perfil de Administrador & Configuración ERP"* con conmutador de modo 1 paso vs. 2 pasos y aprovisionamiento de catálogo (Imagen 4).
   - Creación de `AGENTS.md` y `ARCHITECTURE.md`.
+- **2026-11-17 (v1.3)**:
+  - Replicación y homologación integral de la capa de autenticación con iDempiere ERP basada en `laboratorio1`.
+  - Backend (`server`): Incorporación de `idempiereService.js` y router `/api/auth` (`/login`, `/context`, `/step2`, `/verify`, `/config`, `/test-connection`), con cliente HTTPS nativo, soporte estricto de `organizationId` anidado y fallback a Sandbox GardenWorld.
+  - Frontend (`apps/admin`): Incorporación de `idempiereAuthService.js`, actualización de `AuthContext.jsx` con conmutador dinámico de canal (`proxy` vs `direct`), selectores dinámicos multitenant para el Paso 2 (Clientes, Roles, Organizaciones, Almacenes) y componente homologado `IdempiereInspectorModal.jsx`.
+  - Verificación exitosa del pipeline de compilación global `npm run build:all`.
 
