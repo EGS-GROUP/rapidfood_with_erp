@@ -127,4 +127,7 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
   - Backend (`server`): Incorporación de `idempiereService.js` y router `/api/auth` (`/login`, `/context`, `/step2`, `/verify`, `/config`, `/test-connection`), con cliente HTTPS nativo, soporte estricto de `organizationId` anidado y fallback a Sandbox GardenWorld.
   - Frontend (`apps/admin`): Incorporación de `idempiereAuthService.js`, actualización de `AuthContext.jsx` con conmutador dinámico de canal (`proxy` vs `direct`), selectores dinámicos multitenant para el Paso 2 (Clientes, Roles, Organizaciones, Almacenes) y componente homologado `IdempiereInspectorModal.jsx`.
   - Verificación exitosa del pipeline de compilación global `npm run build:all`.
+- **2026-11-17 (v1.3.1)**:
+  - Corrección del fallo de montaje en `admin/` (`TypeError: ve.clearSession is not a function`): incorporación del método `clearSession()` en `AuthService` y llamado seguro a `AuthService.logout()` en `AuthContext.jsx`.
+  - Recompilación y sincronización de artefactos de producción en `server/public/admin`.
 

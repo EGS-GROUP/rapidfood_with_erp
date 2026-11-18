@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
       AuthService.saveSession(session);
     } else {
       clearSession();
-      AuthService.clearSession();
+      AuthService.logout();
     }
   }, [session]);
 
@@ -199,7 +199,7 @@ export function AuthProvider({ children }) {
     setSession(null);
     setAuthError(null);
     clearSession();
-    AuthService.clearSession();
+    AuthService.logout();
   };
 
   const isAuthenticated = Boolean(session && session.token);

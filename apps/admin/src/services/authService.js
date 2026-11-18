@@ -353,6 +353,10 @@ export class AuthService {
     sessionStorage.removeItem(STORAGE_KEY);
   }
 
+  static clearSession() {
+    this.logout();
+  }
+
   /**
    * Configuracion de servidor y proxy guardada por el usuario
    */
