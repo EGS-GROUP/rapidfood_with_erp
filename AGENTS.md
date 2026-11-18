@@ -134,4 +134,26 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
   - Replicación exacta del componente de Login `LoginPage.jsx` de `laboratorio1` (Hamburguesa 🍔, "Hamburger Rapid", badge "CONTROL DE ACCESO • IDEMPIERE ERP V1", selectores de servidor `localhost:8080` vs `test.idempiere.org`, conmutador Proxy Backend vs REST Directo, Modalidad 1 vs Modalidad 2, botón "Cargar Demo GardenWorld" y botón "Acceso Rápido 1-Clic").
   - Actualización de `AuthGuard.jsx` para renderizar `LoginPage.jsx` directamente y eliminación de bloqueos de renderizado.
   - Recompilación y sincronización exitosa en `server/public/admin`.
+- **2026-11-17 (v1.4)**:
+  - Replicación y homologación integral de la persistencia **SQLite (`better-sqlite3`)** y sincronización de catálogos maestros desde `rapidcorporate`.
+  - Servidor Backend (`server`):
+    - Motor de datos SQLite en `server/data/database.sqlite` configurado con `WAL`, `synchronous = NORMAL` y claves foráneas activas (`foreign_keys = ON`).
+    - Tablas locales: `product_categories`, `products`, `price_lists`, `price_list_versions`, `product_prices`, `customer_categories`, `customers`, `taxes` y `sync_logs`.
+    - Preservación y sembrado inicial de las 10 hamburguesas de autor para mantener operativas las capas de E-commerce y PWA.
+    - Endpoints CRUD completos para Categorías de Productos, Productos, Listas y Precios, Categorías de Clientes y Clientes.
+    - Endpoint `/api/taxes` **estrictamente de solo lectura** con bloqueo 405 para mutaciones.
+    - Endpoints de sincronización `/api/sync/:catalog` y auditoría `/api/sync/logs`.
+  - Panel Admin (`apps/admin`):
+    - Incorporación de `idempiereSyncService.js` para consumo de modelos REST v1 (`m_product_category`, `m_product`, `m_pricelist`, `m_pricelist_version`, `m_productprice`, `c_bp_group`, `c_bpartner`, `c_tax`).
+    - Incorporación de vistas interactivas con funciones de mantenimiento local y sincronización ERP:
+      - `ProductCategoriesView.jsx` (`M_Product_Category`)
+      - `ProductsView.jsx` (`M_Product`)
+      - `PriceListsView.jsx` (`M_PriceList`, `M_PriceList_Version`, `M_ProductPrice`)
+      - `CustomerCategoriesView.jsx` (`C_BP_Group`)
+      - `CustomersView.jsx` (`C_BPartner`)
+      - `TaxesView.jsx` (`C_Tax` - Modo Solo Lectura)
+      - `DatabaseStatusView.jsx` con métricas en tiempo real y botón de sincronización global.
+    - Reorganización del layout y sidebar en `DashboardLayout.jsx` con grupos "OPERACIONES & VENTAS", "CATÁLOGOS ERP • SQLITE" y "SISTEMA & CONECTIVIDAD", junto con toasts reactivos.
+  - Verificación exitosa del pipeline de compilación `npm run build:all`.
+
 

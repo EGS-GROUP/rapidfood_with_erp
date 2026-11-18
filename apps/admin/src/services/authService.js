@@ -399,3 +399,11 @@ export class AuthService {
   }
 }
 
+export function buildApiUrl(baseUrl, endpoint, proxyMode) {
+  return AuthService.buildUrl(baseUrl, endpoint, typeof proxyMode === 'string' ? { mode: proxyMode } : proxyMode);
+}
+
+export function getSession() {
+  return AuthService.getSession();
+}
+

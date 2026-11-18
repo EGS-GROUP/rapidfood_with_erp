@@ -86,20 +86,55 @@ flowchart TD
 
 ## 3. Servidor Backend & Datamart Local (`server`)
 
-* **Tecnología:** Node.js 24 + Express 4.x + SQLite Datamart.
-* **Estructura de Rutas:**
-  * `POST /api/auth/login`: Autenticación 1-Paso / 2-Pasos hacia iDempiere con validación de `parameters` y fallback Sandbox.
-  * `POST /api/auth/context`: Consulta dinámica multitenant (Paso 1) de Tenants, Roles, Organizaciones y Almacenes.
-  * `POST /api/auth/step2`: Confirmación y emisión de token definitivo vía `PUT /api/v1/auth/tokens`.
-  * `POST /api/auth/verify`: Verificación de tokens Bearer activos.
-  * `GET /api/auth/config`: Parámetros y credenciales predeterminadas de GardenWorld.
-  * `POST /api/auth/test-connection`: Ping y diagnóstico directo a la URL de iDempiere.
-  * `GET /api/health`: Healthcheck para orquestadores Dokploy/Docker.
-  * `GET /api/products`: Catálogo local de productos.
-  * `ALL /api/idempiere-proxy?target=`: Proxy local que reenvía cabeceras y payloads hacia servidores iDempiere eliminando las restricciones de CORS del navegador.
-  * `GET /`: Sirve el build estático de Astro (`server/public/ecommerce`).
-  * `GET /app/*`: Sirve la SPA de la PWA Móvil (`server/public/pwa`).
-  * `GET /admin/*`: Sirve la SPA del Panel de Control (`server/public/admin`).
+* **Tecnología:** Node.js 24 + Express 4.x + **SQLite Datamart de Alto Rendimiento (`better-sqlite3`)**.
+* **Configuración del Motor SQLite:**
+  * Modo WAL (`journal_mode = WAL`) para lectura/escritura concurrente sin bloqueos.
+  * Sincronización normal (`synchronous = NORMAL`).
+  * Integridad referencial activada (`foreign_keys = ON`).
+  * Persistencia en disco: `server/data/database.sqlite` (configurable vía variable `DATA_DIR` y `SQLITE_FILE`).
+* **Estructura de Rutas y APIs:**
+  * **Autenticación iDempiere:**
+    * `POST /api/auth/login`: Autenticación 1-Paso / 2-Pasos hacia iDempiere con validación de `parameters` y fallback Sandbox.
+    * `POST /api/auth/context`: Consulta dinámica multitenant (Paso 1) de Tenants, Roles, Organizaciones y Almacenes.
+    * `POST /api/auth/step2`: Confirmación y emisión de token definitivo vía `PUT /api/v1/auth/tokens`.
+    * `POST /api/auth/verify`: Verificación de tokens Bearer activos.
+    * `GET /api/auth/config`: Parámetros y credenciales predeterminadas de GardenWorld.
+    * `POST /api/auth/test-connection`: Ping y diagnóstico directo a la URL de iDempiere.
+  * **Catálogos Maestros con Mantenimiento Local (CRUD):**
+    * `/api/product-categories`: CRUD para `product_categories` (`M_Product_Category`).
+    * `/api/products`: CRUD para `products` (`M_Product`).
+    * `/api/price-lists`, `/api/price-list-versions`, `/api/product-prices`: CRUD para listas, versiones y tarifas (`M_PriceList`, `M_PriceList_Version`, `M_ProductPrice`).
+    * `/api/customer-categories`: CRUD para categorías de socios de negocio (`C_BP_Group`).
+    * `/api/customers`: CRUD para clientes y socios (`C_BPartner`).
+  * **Catálogo de Impuestos (Solo Lectura):**
+    * `GET /api/taxes`: Consulta de tasas e impuestos (`C_Tax`). Retorna `readOnly: true`. Todo intento de modificación arroja `HTTP 405 Method Not Allowed`.
+  * **Sincronización y Auditoría:**
+    * `POST /api/sync/:catalog`: Sincronización masiva transaccional con resolución `ON CONFLICT(id) DO UPDATE SET`.
+    * `GET /api/sync/logs`: Historial y auditoría de sincronizaciones registradas en `sync_logs`.
+  * **Infraestructura & Proxy:**
+    * `GET /api/health`: Healthcheck y telemetría de base de datos (`stats` de productos, categorías, listas, clientes e impuestos).
+    * `ALL /api/idempiere-proxy?target=`: Proxy local server-to-server que reenvía peticiones evitando bloqueos de CORS.
+  * **Servicio Estático de las 3 Aplicaciones:**
+    * `GET /`: Sirve el build de Astro (`server/public/ecommerce`).
+    * `GET /app/*`: Sirve la SPA PWA Móvil (`server/public/pwa`).
+    * `GET /admin/*`: Sirve la SPA del Panel de Control (`server/public/admin`).
+
+---
+
+## 3.1. Esquemas Relacionales SQLite (Datamart Local)
+
+| Tabla | Modelo iDempiere ERP | Propósito | Operaciones Permitidas |
+| :--- | :--- | :--- | :--- |
+| `product_categories` | `M_Product_Category` | Clasificación de productos | Lectura, Creación, Edición, Eliminación, Sync ERP |
+| `products` | `M_Product` | Catálogo de hamburguesas y artículos | Lectura, Creación, Edición, Eliminación, Sync ERP |
+| `price_lists` | `M_PriceList` | Listas de precios corporativas | Lectura, Creación, Edición, Eliminación, Sync ERP |
+| `price_list_versions` | `M_PriceList_Version` | Versiones temporales de listas | Lectura, Sync ERP |
+| `product_prices` | `M_ProductPrice` | Precios específicos por producto | Lectura, Creación, Edición, Eliminación, Sync ERP |
+| `customer_categories` | `C_BP_Group` | Grupos de socios de negocio | Lectura, Creación, Edición, Eliminación, Sync ERP |
+| `customers` | `C_BPartner` | Directorio de clientes y proveedores | Lectura, Creación, Edición, Eliminación, Sync ERP |
+| `taxes` | `C_Tax` | Tasas tributarias e impuestos | **Estrictamente SOLO LECTURA** (Sync ERP) |
+| `sync_logs` | *N/A (Auditoría Interna)* | Historial de sincronizaciones ERP | Lectura y registro automático |
+
 
 ---
 
