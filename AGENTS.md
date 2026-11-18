@@ -155,5 +155,11 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
       - `DatabaseStatusView.jsx` con métricas en tiempo real y botón de sincronización global.
     - Reorganización del layout y sidebar en `DashboardLayout.jsx` con grupos "OPERACIONES & VENTAS", "CATÁLOGOS ERP • SQLITE" y "SISTEMA & CONECTIVIDAD", junto con toasts reactivos.
   - Verificación exitosa del pipeline de compilación `npm run build:all`.
+- **2026-11-17 (v1.4.1)**:
+  - Corrección de despliegue en la nube (Docker / Dokploy en Linux ARM64 / Oracle Cloud):
+    - Actualización de imagen base a `node:22-alpine` en todas las fases del `Dockerfile` para cumplir el requerimiento de motor Node `>=22` de `better-sqlite3`.
+    - Inclusión de herramientas de compilación C++ nativas (`python3`, `make`, `g++`) en la etapa `runner` vía `RUN apk add --no-cache python3 make g++`, permitiendo la correcta compilación nativa de `better-sqlite3` con `node-gyp`.
+    - Limpieza de dependencias en `server/package.json` (`mysql2` removido, `better-sqlite3: ^13.1.1`).
+    - Verificación y recompilación global exitosa con `npm run build:all`.
 
 
