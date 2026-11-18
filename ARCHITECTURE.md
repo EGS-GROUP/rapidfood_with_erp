@@ -194,7 +194,8 @@ rapidfood_with_erp/
 │       └── src/
 │           ├── components/
 │           │   ├── AuthGuard.jsx              # Protección de rutas por token
-│           │   ├── LoginView.jsx              # Login simple "Tasty Bites • Central"
+│           │   ├── LoginPage.jsx              # Pantalla de Login homologada con laboratorio1 (Imagen 1)
+│           │   ├── LoginView.jsx              # Alias compatible de LoginPage
 │           │   ├── DashboardLayout.jsx        # Layout con sidebar modular
 │           │   ├── TokenInfoModal.jsx         # Inspector modal de sesión ERP
 │           │   ├── IdempiereInspectorModal.jsx # Auditoría técnica homologada con laboratorio1

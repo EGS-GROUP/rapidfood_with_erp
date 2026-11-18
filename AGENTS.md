@@ -130,4 +130,8 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
 - **2026-11-17 (v1.3.1)**:
   - Corrección del fallo de montaje en `admin/` (`TypeError: ve.clearSession is not a function`): incorporación del método `clearSession()` en `AuthService` y llamado seguro a `AuthService.logout()` en `AuthContext.jsx`.
   - Recompilación y sincronización de artefactos de producción en `server/public/admin`.
+- **2026-11-17 (v1.3.2)**:
+  - Replicación exacta del componente de Login `LoginPage.jsx` de `laboratorio1` (Hamburguesa 🍔, "Hamburger Rapid", badge "CONTROL DE ACCESO • IDEMPIERE ERP V1", selectores de servidor `localhost:8080` vs `test.idempiere.org`, conmutador Proxy Backend vs REST Directo, Modalidad 1 vs Modalidad 2, botón "Cargar Demo GardenWorld" y botón "Acceso Rápido 1-Clic").
+  - Actualización de `AuthGuard.jsx` para renderizar `LoginPage.jsx` directamente y eliminación de bloqueos de renderizado.
+  - Recompilación y sincronización exitosa en `server/public/admin`.
 
