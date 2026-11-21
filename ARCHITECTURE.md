@@ -95,19 +95,20 @@ flowchart TD
 * **Estructura de Rutas y APIs:**
   * **Autenticación iDempiere:**
     * `POST /api/auth/login`: Autenticación 1-Paso / 2-Pasos hacia iDempiere con validación de `parameters` y fallback Sandbox.
-    * `POST /api/auth/context`: Consulta dinámica multitenant (Paso 1) de Tenants, Roles, Organizaciones y Almacenes.
+    * `POST /api/auth/context`: Consulta dinámica multitenant (Paso 1) de Tenants, Roles, Organizaciones y Almacenes (asociación en cascada).
+    * `POST /api/auth/warehouses`: Consulta dinámica de almacenes filtrados por organización.
     * `POST /api/auth/step2`: Confirmación y emisión de token definitivo vía `PUT /api/v1/auth/tokens`.
     * `POST /api/auth/verify`: Verificación de tokens Bearer activos.
     * `GET /api/auth/config`: Parámetros y credenciales predeterminadas de GardenWorld.
     * `POST /api/auth/test-connection`: Ping y diagnóstico directo a la URL de iDempiere.
+  * **Catálogos Maestros de Solo Lectura (Fuente de la Verdad: iDempiere ERP):**
+    * `GET /api/product-categories`: Consulta de categorías de productos (`M_Product_Category`). Retorna `readOnly: true`. Mutaciones locales bloqueadas con `HTTP 405 Method Not Allowed`.
+    * `GET /api/products`: Consulta de productos (`M_Product`). Retorna `readOnly: true`. Mutaciones locales bloqueadas con `HTTP 405 Method Not Allowed`.
+    * `GET /api/taxes`: Consulta de tasas e impuestos (`C_Tax`). Retorna `readOnly: true`. Mutaciones locales bloqueadas con `HTTP 405 Method Not Allowed`.
   * **Catálogos Maestros con Mantenimiento Local (CRUD):**
-    * `/api/product-categories`: CRUD para `product_categories` (`M_Product_Category`).
-    * `/api/products`: CRUD para `products` (`M_Product`).
     * `/api/price-lists`, `/api/price-list-versions`, `/api/product-prices`: CRUD para listas, versiones y tarifas (`M_PriceList`, `M_PriceList_Version`, `M_ProductPrice`).
     * `/api/customer-categories`: CRUD para categorías de socios de negocio (`C_BP_Group`).
     * `/api/customers`: CRUD para clientes y socios (`C_BPartner`).
-  * **Catálogo de Impuestos (Solo Lectura):**
-    * `GET /api/taxes`: Consulta de tasas e impuestos (`C_Tax`). Retorna `readOnly: true`. Todo intento de modificación arroja `HTTP 405 Method Not Allowed`.
   * **Sincronización y Auditoría:**
     * `POST /api/sync/:catalog`: Sincronización masiva transaccional con resolución `ON CONFLICT(id) DO UPDATE SET`.
     * `GET /api/sync/logs`: Historial y auditoría de sincronizaciones registradas en `sync_logs`.
@@ -125,14 +126,14 @@ flowchart TD
 
 | Tabla | Modelo iDempiere ERP | Propósito | Operaciones Permitidas |
 | :--- | :--- | :--- | :--- |
-| `product_categories` | `M_Product_Category` | Clasificación de productos | Lectura, Creación, Edición, Eliminación, Sync ERP |
-| `products` | `M_Product` | Catálogo de hamburguesas y artículos | Lectura, Creación, Edición, Eliminación, Sync ERP |
+| `product_categories` | `M_Product_Category` | Clasificación de productos | **Estrictamente SOLO LECTURA** (Sync ERP unidireccional) |
+| `products` | `M_Product` | Catálogo maestro de artículos | **Estrictamente SOLO LECTURA** (Sync ERP unidireccional) |
 | `price_lists` | `M_PriceList` | Listas de precios corporativas | Lectura, Creación, Edición, Eliminación, Sync ERP |
 | `price_list_versions` | `M_PriceList_Version` | Versiones temporales de listas | Lectura, Sync ERP |
 | `product_prices` | `M_ProductPrice` | Precios específicos por producto | Lectura, Creación, Edición, Eliminación, Sync ERP |
 | `customer_categories` | `C_BP_Group` | Grupos de socios de negocio | Lectura, Creación, Edición, Eliminación, Sync ERP |
 | `customers` | `C_BPartner` | Directorio de clientes y proveedores | Lectura, Creación, Edición, Eliminación, Sync ERP |
-| `taxes` | `C_Tax` | Tasas tributarias e impuestos | **Estrictamente SOLO LECTURA** (Sync ERP) |
+| `taxes` | `C_Tax` | Tasas tributarias e impuestos | **Estrictamente SOLO LECTURA** (Sync ERP unidireccional) |
 | `sync_logs` | *N/A (Auditoría Interna)* | Historial de sincronizaciones ERP | Lectura y registro automático |
 
 

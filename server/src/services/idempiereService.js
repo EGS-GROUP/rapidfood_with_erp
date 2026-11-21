@@ -51,8 +51,11 @@ const SANDBOX_MULTITENANT_CONTEXT = {
     { id: 50005, name: 'Store East' }
   ],
   warehouses: [
-    { id: 103, name: 'HQ Warehouse' },
-    { id: 1000007, name: 'Admin Storage' }
+    { id: 103, name: 'HQ Warehouse', organizationId: 11 },
+    { id: 104, name: 'Store Central Warehouse', organizationId: 12 },
+    { id: 50005, name: 'Store East Warehouse', organizationId: 50005 },
+    { id: 50002, name: 'Fertilizer Warehouse', organizationId: 50001 },
+    { id: 1000007, name: 'Admin Storage', organizationId: 11 }
   ],
   languages: [
     { id: 'es_PE', name: 'Español (Perú)' },
@@ -228,12 +231,26 @@ async function getAvailableContext(userName, password, options = {}) {
             liveOrganizations = filteredOrgs.length > 0 ? filteredOrgs : orgsRes.data.organizations;
           }
 
-          const selectedOrg = liveOrganizations[0]?.id || 11;
-
-          // 3. Consultar Almacenes para Client + Role + Org
-          const whRes = await makeHttpRequest(`${erpBaseUrl}/api/v1/auth/warehouses?client=${selectedClient}&role=${selectedRole}&organization=${selectedOrg}`, 'GET', authHeaders, null, 4000);
-          if (whRes.statusCode === 200 && Array.isArray(whRes.data?.warehouses) && whRes.data.warehouses.length > 0) {
-            liveWarehouses = whRes.data.warehouses;
+          // 3. Consultar Almacenes para CADA Organización en paralelo (cascada dinámica)
+          if (liveOrganizations.length > 0) {
+            const whPromises = liveOrganizations.map(async (org) => {
+              try {
+                const whRes = await makeHttpRequest(`${erpBaseUrl}/api/v1/auth/warehouses?client=${selectedClient}&role=${selectedRole}&organization=${org.id}`, 'GET', authHeaders, null, 4000);
+                if (whRes.statusCode === 200 && Array.isArray(whRes.data?.warehouses)) {
+                  return whRes.data.warehouses.map(w => ({
+                    id: w.id,
+                    name: w.name,
+                    organizationId: org.id,
+                    orgName: org.name
+                  }));
+                }
+              } catch (e) {
+                // Continuar si una organización específica falla
+              }
+              return [];
+            });
+            const whArrays = await Promise.all(whPromises);
+            liveWarehouses = whArrays.flat();
           }
         } catch (subErr) {
           console.warn('[iDempiereService] Aviso al consultar sub-recursos:', subErr.message);
@@ -635,12 +652,42 @@ async function fetchIdempiereModel(modelName, token, query = '$top=100', erpBase
   }
 }
 
+/**
+ * Consulta dinámica de almacenes para una organización específica
+ */
+async function getWarehouses(clientId, roleId, organizationId, options = {}) {
+  const erpBaseUrl = cleanErpBaseUrl(options.baseUrl);
+  const token = options.token;
+  const authHeaders = {
+    'Accept': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+
+  try {
+    const targetUrl = `${erpBaseUrl}/api/v1/auth/warehouses?client=${clientId}&role=${roleId}&organization=${organizationId}`;
+    const whRes = await makeHttpRequest(targetUrl, 'GET', authHeaders, null, 4000);
+    if (whRes.statusCode === 200 && Array.isArray(whRes.data?.warehouses)) {
+      return whRes.data.warehouses.map(w => ({
+        id: w.id,
+        name: w.name,
+        organizationId: Number(organizationId)
+      }));
+    }
+  } catch (err) {
+    console.warn('[iDempiereService] Error consultando almacenes para org:', organizationId, err.message);
+  }
+
+  // Fallback a SANDBOX_MULTITENANT_CONTEXT si aplica
+  return SANDBOX_MULTITENANT_CONTEXT.warehouses.filter(w => Number(w.organizationId) === Number(organizationId));
+}
+
 module.exports = {
   cleanErpBaseUrl,
   DEFAULT_IDEMPIERE_CONFIG,
   SANDBOX_MULTITENANT_CONTEXT,
   sanitizeAndValidatePayload,
   getAvailableContext,
+  getWarehouses,
   authenticateIdempiere,
   authenticateStep2,
   fetchIdempiereModel,

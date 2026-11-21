@@ -369,6 +369,63 @@ export async function completeLoginStep2(credentials, selectedContext, connectio
 }
 
 /**
+ * Consulta dinámica de almacenes asignados a una organización
+ */
+export async function getWarehouses(erpBaseUrl, stage1Token, clientId, roleId, organizationId, connectionMode = 'proxy') {
+  const cleanBase = normalizeErpBaseUrl(erpBaseUrl);
+
+  if (connectionMode === 'direct' && stage1Token) {
+    try {
+      const response = await fetch(`${cleanBase}/api/v1/auth/warehouses?client=${clientId}&role=${roleId}&organization=${organizationId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${stage1Token}`
+        }
+      });
+      if (response.ok) {
+        const resJson = await response.json();
+        if (Array.isArray(resJson.warehouses)) {
+          return resJson.warehouses.map(w => ({
+            id: w.id,
+            name: w.name,
+            organizationId: Number(organizationId)
+          }));
+        }
+      }
+    } catch (err) {
+      console.warn('[AuthService] Fallo al consultar almacenes directos, recurriendo a proxy:', err.message);
+    }
+  }
+
+  // Vía Proxy Backend
+  try {
+    const response = await fetch('/api/auth/warehouses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        erpBaseUrl: cleanBase,
+        stage1Token,
+        clientId: Number(clientId),
+        roleId: Number(roleId),
+        organizationId: Number(organizationId)
+      })
+    });
+    const resJson = await response.json();
+    if (resJson.success && Array.isArray(resJson.data)) {
+      return resJson.data;
+    }
+  } catch (err) {
+    console.warn('[AuthService] Error consultando almacenes vía proxy:', err.message);
+  }
+
+  return [];
+}
+
+/**
  * Verifica la validez de un token existente
  */
 export async function verifyToken(token) {

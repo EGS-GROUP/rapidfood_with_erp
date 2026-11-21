@@ -165,5 +165,23 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
     - Persistencia de estado en `localStorage` (`sidebar_collapsed`).
     - Margen reactivo fluido en el área de trabajo principal (`marginLeft: 240px` vs `56px`).
     - Verificación y compilación global exitosa con `npm run build:all`.
+- **2026-11-20 (v1.6)**:
+  - **Corrección de Cascada Multitenant en Login a 2 Pasos (Organización &rarr; Almacén)**:
+    - Backend (`server/src/services/idempiereService.js`): En `getAvailableContext`, consulta paralela (`Promise.all`) de los almacenes para cada organización devuelta por iDempiere REST (`/api/v1/auth/warehouses?client=...&role=...&organization=...`), vinculando `{ organizationId, orgName }` a cada almacén.
+    - Nuevo endpoint backend `POST /api/auth/warehouses` para consultas dinámicas y soporte de fallback seguro.
+    - Frontend (`apps/admin`):
+      - Incorporación de `getWarehouses` en `idempiereAuthService.js`.
+      - En `LoginPage.jsx`, vinculación reactiva `handleOrganizationChange(orgId)`: al seleccionar una organización (ej. *HQ #11*), el selector de almacenes filtra inmediatamente en cascada mostrando únicamente los almacenes de dicha sucursal (ej. *HQ Warehouse #103*) y auto-seleccionando el primero disponible.
+  - **Blindaje de Solo Lectura para Categorías de Productos (`M_Product_Category`) y Productos (`M_Product`)**:
+    - Backend (`server/src/routes/api.js`):
+      - Respuestas de `GET /api/products` y `GET /api/product-categories` marcadas con `readOnly: true`.
+      - Bloqueo estricto con `HTTP 405 Method Not Allowed` en todas las rutas mutables locales (`POST`, `PUT`, `DELETE`, `/reset`), consolidando a iDempiere ERP como la **única fuente de la verdad**.
+    - Frontend (`apps/admin`):
+      - Refactorización de `ProductCategoriesView.jsx` y `ProductsView.jsx` a vistas de solo lectura con badge corporativo `🔒 SOLO LECTURA • MAESTRO ERP`, buscador en tiempo real, filtro por categoría y botón de sincronización directa `⚡ Sincronizar desde ERP`.
+      - Eliminación de formularios y modales de edición manual local.
+  - **Depuración y Repoblación de Base de Datos SQLite**:
+    - Script `server/scripts/sync-erp-products.js`: Autenticación en vivo contra `https://lunaerp.egssmart.com/`, vaciado de las tablas locales `products` y `product_categories` en `server/data/database.sqlite`, y repoblación íntegra con las 14 categorías y 55 productos oficiales de iDempiere.
+  - Compilación y sincronización global exitosa con `npm run build:all`.
+
 
 

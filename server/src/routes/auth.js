@@ -98,6 +98,32 @@ router.post('/context', async (req, res) => {
 });
 
 /**
+ * Endpoint para consulta dinámica de almacenes por organización
+ * POST /api/auth/warehouses
+ */
+router.post('/warehouses', async (req, res) => {
+  try {
+    const { erpBaseUrl, stage1Token, clientId, roleId, organizationId } = req.body;
+    const warehouses = await idempiereService.getWarehouses(
+      clientId || 11,
+      roleId || 102,
+      organizationId || 11,
+      { baseUrl: erpBaseUrl, token: stage1Token }
+    );
+    return res.json({
+      success: true,
+      data: warehouses
+    });
+  } catch (error) {
+    console.error('[Auth Warehouses Error]', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * Endpoint para Modalidad 2 (Paso 2): Confirmar Contexto y Obtener Token Definitivo
  * Implementa estrictamente el flujo oficial PUT /api/v1/auth/tokens con Authorization: Bearer <stage1Token>
  * POST /api/auth/step2

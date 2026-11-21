@@ -5,17 +5,7 @@ export default function ProductCategoriesView({ session, onNotify }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [editingCategory, setEditingCategory] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    id: '',
-    value: '',
-    name: '',
-    description: '',
-    is_active: 1
-  });
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadCategories = async () => {
     setLoading(true);
@@ -45,99 +35,38 @@ export default function ProductCategoriesView({ session, onNotify }) {
     setSyncing(true);
     try {
       const result = await syncSingleCatalog('product_categories', session);
-      if (onNotify) onNotify('success', `¡Sincronizado! Se procesaron ${result.count} categorías desde iDempiere.`);
+      if (onNotify) onNotify('success', `¡Sincronizado! Se procesaron ${result.count} categorías desde iDempiere ERP.`);
       loadCategories();
     } catch (err) {
-      if (onNotify) onNotify('error', `Fallo al sincronizar: ${err.message}`);
+      if (onNotify) onNotify('error', `Fallo al sincronizar categorías: ${err.message}`);
     } finally {
       setSyncing(false);
     }
   };
 
-  const handleOpenAdd = () => {
-    setEditingCategory(null);
-    setFormData({
-      id: '',
-      value: `CAT-${Date.now().toString().slice(-4)}`,
-      name: '',
-      description: '',
-      is_active: 1
-    });
-    setShowModal(true);
-  };
-
-  const handleOpenEdit = (cat) => {
-    setEditingCategory(cat);
-    setFormData({
-      id: cat.id,
-      value: cat.value || '',
-      name: cat.name || '',
-      description: cat.description || '',
-      is_active: cat.is_active ? 1 : 0
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm(`¿Seguro que deseas eliminar la categoría #${id}?`)) return;
-    try {
-      const res = await fetch(`/api/product-categories/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        if (onNotify) onNotify('success', data.message);
-        loadCategories();
-      } else {
-        if (onNotify) onNotify('error', data.error);
-      }
-    } catch (err) {
-      if (onNotify) onNotify('error', err.message);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      let url = '/api/product-categories';
-      let method = 'POST';
-
-      if (editingCategory) {
-        url = `/api/product-categories/${editingCategory.id}`;
-        method = 'PUT';
-      }
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        if (onNotify) onNotify('success', data.message);
-        setShowModal(false);
-        loadCategories();
-      } else {
-        if (onNotify) onNotify('error', data.error);
-      }
-    } catch (err) {
-      if (onNotify) onNotify('error', err.message);
-    }
-  };
+  const filteredCategories = categories.filter(c =>
+    (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.value || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div style={{ color: '#f8fafc' }}>
       {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '700', marginBottom: '8px' }}>
+            🔒 SOLO LECTURA &bull; MAESTRO ERP
+          </div>
           <h2 style={{ margin: '0 0 6px 0', fontSize: '1.6rem', fontWeight: '800' }}>
-            📁 Categorías de Productos
+            📁 Categorías de Productos (M_Product_Category)
           </h2>
           <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem' }}>
-            Mapeo con iDempiere ERP: <code style={{ color: '#38bdf8' }}>M_Product_Category</code> &bull; Base local: <span style={{ color: '#10b981' }}>SQLite</span>
+            Este catálogo se sincroniza exclusivamente desde el ERP iDempiere garantizando que el ERP sea la única fuente de la verdad. No permite mutaciones locales.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button
             onClick={handleSync}
             disabled={syncing}
@@ -155,58 +84,68 @@ export default function ProductCategoriesView({ session, onNotify }) {
               gap: '6px'
             }}
           >
-            {syncing ? '🔄 Sincronizando...' : '⚡ Sincronizar desde ERP'}
-          </button>
-
-          <button
-            onClick={handleOpenAdd}
-            style={{
-              padding: '10px 18px',
-              background: '#ff6b00',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#ffffff',
-              fontWeight: '700',
-              fontSize: '0.88rem',
-              cursor: 'pointer'
-            }}
-          >
-            + Nueva Categoría
+            {syncing ? '🔄 Sincronizando...' : '⚡ Sincronizar Categorías desde ERP'}
           </button>
         </div>
       </div>
 
-      {/* Tabla */}
+      {/* Barra de Filtro / Búsqueda */}
+      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <input
+          type="text"
+          placeholder="Buscar por código, nombre o descripción..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            flex: 1,
+            maxWidth: '420px',
+            padding: '9px 14px',
+            background: '#111827',
+            border: '1px solid #1f2937',
+            borderRadius: '8px',
+            color: '#f8fafc',
+            fontSize: '0.88rem'
+          }}
+        />
+        <div style={{ color: '#64748b', fontSize: '0.82rem' }}>
+          Mostrando {filteredCategories.length} de {categories.length} categorías
+        </div>
+      </div>
+
+      {/* Tabla Solo Lectura */}
       <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '14px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
           <thead>
             <tr style={{ background: '#1a2234', color: '#94a3b8', borderBottom: '1px solid #1f2937' }}>
-              <th style={{ padding: '14px 18px' }}>ID</th>
-              <th style={{ padding: '14px 18px' }}>Código (Value)</th>
-              <th style={{ padding: '14px 18px' }}>Nombre</th>
+              <th style={{ padding: '14px 18px' }}>ID ERP</th>
+              <th style={{ padding: '14px 18px' }}>Código / Value</th>
+              <th style={{ padding: '14px 18px' }}>Nombre de Categoría</th>
               <th style={{ padding: '14px 18px' }}>Descripción</th>
               <th style={{ padding: '14px 18px' }}>Estado</th>
-              <th style={{ padding: '14px 18px', textAlign: 'right' }}>Acciones</th>
+              <th style={{ padding: '14px 18px' }}>Última Sincronización</th>
+              <th style={{ padding: '14px 18px', textAlign: 'right' }}>Modo</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
-                  Cargando categorías...
+                <td colSpan="7" style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
+                  Cargando categorías de productos desde SQLite...
                 </td>
               </tr>
-            ) : categories.length === 0 ? (
+            ) : filteredCategories.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
-                  No hay categorías registradas. Haz clic en "Sincronizar desde ERP" o agrega una nueva.
+                <td colSpan="7" style={{ padding: '36px', textAlign: 'center', color: '#64748b' }}>
+                  No se encontraron categorías sincronizadas. Presione "Sincronizar Categorías desde ERP".
                 </td>
               </tr>
             ) : (
-              categories.map((c) => (
-                <tr key={c.id} style={{ borderBottom: '1px solid #1f2937', transition: 'background 0.15s' }}>
+              filteredCategories.map((c) => (
+                <tr key={c.id} style={{ borderBottom: '1px solid #1f2937' }}>
                   <td style={{ padding: '14px 18px', fontWeight: '700', color: '#cbd5e1' }}>#{c.id}</td>
-                  <td style={{ padding: '14px 18px', color: '#38bdf8', fontFamily: 'monospace' }}>{c.value || '-'}</td>
+                  <td style={{ padding: '14px 18px', color: '#38bdf8', fontFamily: 'monospace', fontWeight: '700' }}>
+                    {c.value || `CAT-${c.id}`}
+                  </td>
                   <td style={{ padding: '14px 18px', fontWeight: '600' }}>{c.name}</td>
                   <td style={{ padding: '14px 18px', color: '#94a3b8' }}>{c.description || '-'}</td>
                   <td style={{ padding: '14px 18px' }}>
@@ -221,36 +160,20 @@ export default function ProductCategoriesView({ session, onNotify }) {
                       {c.is_active ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
+                  <td style={{ padding: '14px 18px', color: '#64748b', fontSize: '0.8rem' }}>
+                    {c.synced_at || 'Local'}
+                  </td>
                   <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                    <button
-                      onClick={() => handleOpenEdit(c)}
-                      style={{
-                        padding: '6px 12px',
-                        background: '#1f2937',
-                        border: '1px solid #374151',
-                        borderRadius: '6px',
-                        color: '#f8fafc',
-                        cursor: 'pointer',
-                        marginRight: '8px',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      ✏️ Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(c.id)}
-                      style={{
-                        padding: '6px 12px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '6px',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      🗑️ Eliminar
-                    </button>
+                    <span style={{
+                      padding: '4px 8px',
+                      background: '#1f2937',
+                      color: '#94a3b8',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      border: '1px solid #374151'
+                    }}>
+                      👁️ Solo Lectura
+                    </span>
                   </td>
                 </tr>
               ))
@@ -258,77 +181,6 @@ export default function ProductCategoriesView({ session, onNotify }) {
           </tbody>
         </table>
       </div>
-
-      {/* Modal Formulario */}
-      {showModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '16px'
-        }}>
-          <div style={{ background: '#1e2433', border: '1px solid #334155', borderRadius: '16px', padding: '24px', maxWidth: '460px', width: '100%' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.25rem' }}>
-              {editingCategory ? `Editar Categoría #${editingCategory.id}` : 'Crear Nueva Categoría'}
-            </h3>
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '4px' }}>Código (Value)</label>
-                <input
-                  type="text"
-                  value={formData.value}
-                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                  style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '4px' }}>Nombre *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '4px' }}>Descripción</label>
-                <textarea
-                  rows="3"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  style={{ padding: '10px 16px', background: '#334155', border: 'none', borderRadius: '8px', color: '#f8fafc', cursor: 'pointer' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  style={{ padding: '10px 18px', background: '#ff6b00', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '700', cursor: 'pointer' }}
-                >
-                  {editingCategory ? 'Guardar Cambios' : 'Crear Categoría'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

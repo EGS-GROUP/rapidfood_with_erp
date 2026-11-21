@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { DEFAULT_GARDENWORLD_PARAMS } from '../services/idempiereAuthService';
+import { DEFAULT_GARDENWORLD_PARAMS, getWarehouses } from '../services/idempiereAuthService';
 
 export default function LoginPage() {
   const {
@@ -119,16 +119,62 @@ export default function LoginPage() {
       const data = result.contextData || result;
       setAvailableContext(data);
       setStage1Token(data.stage1Token || null);
-      // Auto-seleccionar primer elemento disponible
+      
+      const firstOrgId = data.organizations?.[0]?.id ?? 11;
+      const matchingWh = (data.warehouses || []).filter(w =>
+        w.organizationId === undefined || Number(w.organizationId) === Number(firstOrgId)
+      );
+
+      // Auto-seleccionar primer elemento disponible en cascada
       setSelectedContext({
         clientId: data.clients?.[0]?.id ?? 11,
         roleId: data.roles?.[0]?.id ?? 102,
-        organizationId: data.organizations?.[0]?.id ?? 11,
-        warehouseId: data.warehouses?.[0]?.id ?? 103,
+        organizationId: firstOrgId,
+        warehouseId: matchingWh[0]?.id ?? (data.warehouses?.[0]?.id ?? 103),
         language: data.languages?.[0]?.id ?? 'es_PE'
       });
       setCurrentStep(2);
     }
+  };
+
+  // Cambio en cascada: Organización -> Almacenes dinámicos
+  const handleOrganizationChange = async (newOrgId) => {
+    const orgIdNum = Number(newOrgId);
+    let matchingWh = (availableContext?.warehouses || []).filter(w =>
+      Number(w.organizationId) === orgIdNum
+    );
+
+    // Si aún no tenemos los almacenes precargados para esta org, consultarlos
+    if (matchingWh.length === 0 && (availableContext?.stage1Token || stage1Token)) {
+      try {
+        const liveWh = await getWarehouses(
+          erpBaseUrl,
+          availableContext?.stage1Token || stage1Token,
+          selectedContext.clientId,
+          selectedContext.roleId,
+          orgIdNum,
+          connectionMode
+        );
+        if (liveWh && liveWh.length > 0) {
+          matchingWh = liveWh;
+          setAvailableContext(prev => ({
+            ...prev,
+            warehouses: [
+              ...(prev?.warehouses || []).filter(w => Number(w.organizationId) !== orgIdNum),
+              ...liveWh
+            ]
+          }));
+        }
+      } catch (err) {
+        console.warn('Aviso consultando almacenes para organización:', orgIdNum, err);
+      }
+    }
+
+    setSelectedContext(prev => ({
+      ...prev,
+      organizationId: orgIdNum,
+      warehouseId: matchingWh.length > 0 ? matchingWh[0].id : ''
+    }));
   };
 
   // Modalidad 2: Paso 2 (Confirmar Contexto y Obtener Token)
@@ -848,7 +894,7 @@ export default function LoginPage() {
                     </label>
                     <select
                       value={selectedContext.organizationId}
-                      onChange={(e) => setSelectedContext(prev => ({ ...prev, organizationId: Number(e.target.value) }))}
+                      onChange={(e) => handleOrganizationChange(e.target.value)}
                       style={{ width: '100%', padding: '8px 10px', background: '#0d0e12', border: '1px solid #0284c7', borderRadius: '8px', color: '#38bdf8', fontSize: '0.82rem', fontWeight: '700' }}
                     >
                       {availableContext?.organizations?.map(o => (
@@ -857,20 +903,31 @@ export default function LoginPage() {
                     </select>
                   </div>
 
-                  {/* Almacén */}
+                  {/* Almacén (Filtrado en Cascada según Organización) */}
                   <div>
                     <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                       Almacén de Despacho (Warehouse):
                     </label>
-                    <select
-                      value={selectedContext.warehouseId}
-                      onChange={(e) => setSelectedContext(prev => ({ ...prev, warehouseId: Number(e.target.value) }))}
-                      style={{ width: '100%', padding: '8px 10px', background: '#0d0e12', border: '1px solid #334155', borderRadius: '8px', color: 'white', fontSize: '0.82rem' }}
-                    >
-                      {availableContext?.warehouses?.map(w => (
-                        <option key={w.id} value={w.id}>{w.name} (#{w.id})</option>
-                      ))}
-                    </select>
+                    {(() => {
+                      const visibleWarehouses = (availableContext?.warehouses || []).filter(w =>
+                        w.organizationId === undefined || Number(w.organizationId) === Number(selectedContext.organizationId)
+                      );
+                      return (
+                        <select
+                          value={selectedContext.warehouseId}
+                          onChange={(e) => setSelectedContext(prev => ({ ...prev, warehouseId: Number(e.target.value) }))}
+                          style={{ width: '100%', padding: '8px 10px', background: '#0d0e12', border: '1px solid #334155', borderRadius: '8px', color: 'white', fontSize: '0.82rem' }}
+                        >
+                          {visibleWarehouses.length > 0 ? (
+                            visibleWarehouses.map(w => (
+                              <option key={w.id} value={w.id}>{w.name} (#{w.id})</option>
+                            ))
+                          ) : (
+                            <option value="">(Sin almacenes asignados a esta organización)</option>
+                          )}
+                        </select>
+                      );
+                    })()}
                   </div>
 
                   {/* Idioma */}
