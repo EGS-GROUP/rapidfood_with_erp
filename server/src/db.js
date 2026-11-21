@@ -189,142 +189,6 @@ function seedInitialDataIfEmpty() {
   `);
   insertCat.run(109, 'Chemicals', 'Chemicals & Supplies', 'Químicos y suministros');
   insertCat.run(111, 'Doc', 'Documentation', 'Manuales y documentación');
-  insertCat.run(1001, 'Burgers', 'Hamburguesas de Autor', 'Especialidades culinarias gourmet');
-  insertCat.run(1002, 'Drinks', 'Bebidas & Refrescos', 'Bebidas frías y calientes');
-
-  // Sembrar Productos Iniciales (10 Creaciones de Autor de Hamburguesas + Seed ERP)
-  const insertProd = db.prepare(`
-    INSERT INTO products (id, value, name, category_id, category_name, price, stock, image, description, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-  `);
-
-  const initialProds = [
-    {
-      id: 1,
-      value: 'BURGER-CHEF',
-      name: 'Rey de las Burgers',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 14.99,
-      stock: 45,
-      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80',
-      description: 'Doble medallón de carne Angus Black 100% flameada al roble vivo, queso cheddar inglés añejado 12 meses, cebolla caramelizada al bourbon, panceta crocante y salsa secreta Real.'
-    },
-    {
-      id: 2,
-      value: 'BURGER-REAL',
-      name: 'Burger Real Clásica',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 9.99,
-      stock: 60,
-      image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=600&q=80',
-      description: 'Medallón de res seleccionada a la plancha de hierro fundido, doble loncha de queso cheddar fundido, lechuga hidropónica fresca, tomate maduro y pepinillos encurtidos.'
-    },
-    {
-      id: 3,
-      value: 'BURGER-DOBLE',
-      name: 'Burger Real Doble',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 12.50,
-      stock: 40,
-      image: 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&w=600&q=80',
-      description: 'Dos carnes smash con costra caramelizada profunda, cuádruple queso americano extra derretido, panceta crujiente, relish dulce y mayonesa trufada en pan de papa.'
-    },
-    {
-      id: 4,
-      value: 'BURGER-ESPECIAL',
-      name: 'Burger Doble Especial',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 13.50,
-      stock: 35,
-      image: 'https://images.unsplash.com/photo-1583032015879-c5c48b59d9c5?auto=format&fit=crop&w=600&q=80',
-      description: 'Doble blend premium de picaña y asado de tira, queso Monterrey Jack fundido con pimientos asados, huevo de campo a la plancha y alioli de ajo negro.'
-    },
-    {
-      id: 5,
-      value: 'BURGER-TRUFA',
-      name: 'Burger Trufa & Portobello',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 15.50,
-      stock: 25,
-      image: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=600&q=80',
-      description: 'Carne madurada Dry-Aged 30 días, sombrero de hongo Portobello glaseado al vino tinto, queso suizo Emmental gratinado y aceite de trufa blanca de Piamonte.'
-    },
-    {
-      id: 6,
-      value: 'BURGER-CRISPY',
-      name: 'Burger Crispy Smokehouse',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 11.99,
-      stock: 50,
-      image: 'https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=600&q=80',
-      description: 'Suprema de pechuga campera marinada 24 horas en buttermilk y pimentón ahumado, rebozada en copos de maíz crocantes, doble bacon y salsa BBQ chipotle.'
-    },
-    {
-      id: 7,
-      value: 'BURGER-BBQ',
-      name: 'Burger BBQ Bourbon Flame',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 13.99,
-      stock: 30,
-      image: 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&w=600&q=80',
-      description: 'Medallón de res ahumado pacientemente con virutas de roble, aros de cebolla artesanalmente rebozados a la cerveza, pulled pork y salsa barbacoa al bourbon artesanal.'
-    },
-    {
-      id: 8,
-      value: 'BURGER-BACON',
-      name: 'Burger Bacon Cheese Deluxe',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 10.99,
-      stock: 45,
-      image: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?auto=format&fit=crop&w=600&q=80',
-      description: '180g de carne jugosa a la parrilla, triple tira de tocino ahumado de corte grueso extra crocante, quesos gouda y monterrey fundidos, cebolla roja fresca y mostaza dulce.'
-    },
-    {
-      id: 9,
-      value: 'BURGER-GUACA',
-      name: 'Burger Guacamole & Chipotle Crunch',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 12.99,
-      stock: 28,
-      image: 'https://images.unsplash.com/photo-1596662951482-0c4ba74a6df6?auto=format&fit=crop&w=600&q=80',
-      description: 'Carne a la parrilla sobre cama de guacamole rústico con toque de lima fresca y cilantro, totopos crocantes de maíz, queso pepper jack fundido y crema ligera de chipotle.'
-    },
-    {
-      id: 10,
-      value: 'BURGER-GREEN',
-      name: 'Burger Green Garden Truffle',
-      category_id: 1001,
-      category_name: 'Hamburguesas de Autor',
-      price: 11.50,
-      stock: 32,
-      image: 'https://images.unsplash.com/photo-1520072959219-c595dc870360?auto=format&fit=crop&w=600&q=80',
-      description: 'Medallón artesanal a base de lentejas francesas, quinoa andina y setas salteadas, queso vegetal cremoso ahumado, brotes tiernos orgánicos, tomate seco y mahonesa vegana trufada.'
-    },
-    {
-      id: 136,
-      value: 'Fertilizer#50',
-      name: 'Fertilizer #50 (iDempiere Seed)',
-      category_id: 109,
-      category_name: 'Chemicals & Supplies',
-      price: 24.50,
-      stock: 80,
-      image: 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?w=500&auto=format&fit=crop&q=80',
-      description: '50 # Bag of Lawn Fertilizer sincronizado desde GardenWorld.'
-    }
-  ];
-
-  for (const p of initialProds) {
-    insertProd.run(p.id, p.value, p.name, p.category_id, p.category_name, p.price, p.stock, p.image, p.description);
-  }
 
   // Sembrar Listas de Precios y Versiones
   db.prepare(`
@@ -337,17 +201,6 @@ function seedInitialDataIfEmpty() {
     VALUES (101, 101, 'Standard 2026', '2026-01-01', 1)
   `).run();
 
-  // Sembrar Precios de Productos
-  const insertPrice = db.prepare(`
-    INSERT INTO product_prices (id, price_list_version_id, product_id, product_name, price_list, price_std, price_limit)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-  insertPrice.run(1001, 101, 1, 'Rey de las Burgers', 16.00, 14.99, 13.50);
-  insertPrice.run(1002, 101, 2, 'Burger Real Clásica', 12.00, 9.99, 8.50);
-  insertPrice.run(1003, 101, 3, 'Burger Real Doble', 14.00, 12.50, 11.00);
-  insertPrice.run(1004, 101, 4, 'Burger Doble Especial', 15.00, 13.50, 12.00);
-  insertPrice.run(1005, 101, 136, 'Fertilizer #50', 28.00, 24.50, 22.00);
-
   // Sembrar Categorías de Clientes
   db.prepare(`
     INSERT INTO customer_categories (id, value, name, description, is_active)
@@ -357,7 +210,6 @@ function seedInitialDataIfEmpty() {
     INSERT INTO customer_categories (id, value, name, description, is_active)
     VALUES (104, 'Vendors', 'Proveedores & Aliados', 'Proveedores de suministros gastronómicos', 1)
   `).run();
-
   // Sembrar Clientes
   const insertCust = db.prepare(`
     INSERT INTO customers (id, value, name, tax_id, group_id, group_name, email, phone, is_customer, is_vendor, is_active)
@@ -771,6 +623,12 @@ function syncCatalogFromERP(catalogName, records) {
       }
 
       case 'products': {
+        const ensureCatStmt = d.prepare(`
+          INSERT INTO product_categories (id, value, name, description, is_active)
+          VALUES (?, ?, ?, 'Sincronizado automáticamente desde producto ERP', 1)
+          ON CONFLICT(id) DO UPDATE SET name = excluded.name
+        `);
+
         const stmt = d.prepare(`
           INSERT INTO products (id, value, name, category_id, category_name, price, stock, image, description, is_active, synced_at)
           VALUES (@id, @value, @name, @category_id, @category_name, @price, @stock, @image, @description, @is_active, @synced_at)
@@ -784,6 +642,10 @@ function syncCatalogFromERP(catalogName, records) {
             synced_at = excluded.synced_at
         `);
         for (const r of records) {
+          const catId = r.M_Product_Category_ID?.id || null;
+          if (catId) {
+            ensureCatStmt.run(catId, `CAT-${catId}`, r.M_Product_Category_ID?.identifier || `Categoría #${catId}`);
+          }
           stmt.run({
             id: r.id,
             value: r.Value || `PROD-${r.id}`,
@@ -907,6 +769,12 @@ function syncCatalogFromERP(catalogName, records) {
       }
 
       case 'customers': {
+        const ensureGroupStmt = d.prepare(`
+          INSERT INTO customer_categories (id, value, name, description, is_active)
+          VALUES (?, ?, ?, 'Sincronizado automáticamente desde socio de negocio ERP', 1)
+          ON CONFLICT(id) DO UPDATE SET name = excluded.name
+        `);
+
         const stmt = d.prepare(`
           INSERT INTO customers (id, value, name, tax_id, group_id, group_name, email, phone, is_customer, is_vendor, is_active, synced_at)
           VALUES (@id, @value, @name, @tax_id, @group_id, @group_name, @email, @phone, @is_customer, @is_vendor, @is_active, @synced_at)
@@ -922,12 +790,16 @@ function syncCatalogFromERP(catalogName, records) {
             synced_at = excluded.synced_at
         `);
         for (const r of records) {
+          const groupId = r.C_BP_Group_ID?.id || null;
+          if (groupId) {
+            ensureGroupStmt.run(groupId, `GRP-${groupId}`, r.C_BP_Group_ID?.identifier || `Grupo #${groupId}`);
+          }
           stmt.run({
             id: r.id,
             value: r.Value || `BP-${r.id}`,
             name: r.Name || 'Socio de Negocio',
             tax_id: r.TaxID || r.Value || '',
-            group_id: r.C_BP_Group_ID?.id || null,
+            group_id: groupId,
             group_name: r.C_BP_Group_ID?.identifier || 'General',
             email: r.EMail || '',
             phone: r.Phone || '',

@@ -115,6 +115,15 @@ export async function syncSingleCatalog(catalogKey, session) {
     }
 
     case 'customers': {
+      // Pre-sincronizar grupos de socios de negocio para garantizar integridad referencial
+      try {
+        const groups = await fetchIdempiereModel('c_bp_group', currentSession);
+        if (Array.isArray(groups) && groups.length > 0) {
+          await sendToLocalSync('customer_categories', groups);
+        }
+      } catch (grpErr) {
+        console.warn('Aviso sincronizando grupos previos a clientes:', grpErr.message);
+      }
       const records = await fetchIdempiereModel('c_bpartner', currentSession);
       const result = await sendToLocalSync('customers', records);
       return { catalog: 'Clientes / Socios de Negocio', count: result.data?.count || records.length };
@@ -166,7 +175,91 @@ export async function syncAllCatalogs(session, onProgress) {
   return results;
 }
 
+/**
+ * Crea un socio de negocio inmediatamente en iDempiere ERP (POST /api/v1/models/c_bpartner)
+ */
+export async function createCustomerInERP(customerData, session) {
+  const currentSession = session || getSession();
+  if (!currentSession?.token) {
+    throw new Error('No hay sesión activa en iDempiere ERP para sincronizar el cliente.');
+  }
+
+  const endpoint = '/api/v1/models/c_bpartner';
+  const url = buildApiUrl(currentSession.baseUrl, endpoint, currentSession.proxyMode || PROXY_MODES.LOCAL);
+
+  const payload = {
+    Value: customerData.value || `BP-${Date.now().toString().slice(-5)}`,
+    Name: customerData.name,
+    TaxID: customerData.tax_id || '',
+    C_BP_Group_ID: { id: Number(customerData.group_id || 103) },
+    IsCustomer: customerData.is_customer !== false,
+    IsVendor: Boolean(customerData.is_vendor),
+    IsActive: customerData.is_active !== false
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${currentSession.token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const errorMsg = data.detail || data.title || data.message || `Error HTTP ${res.status}`;
+    throw new Error(`Error creando cliente en iDempiere ERP: ${errorMsg}`);
+  }
+
+  return data;
+}
+
+/**
+ * Actualiza un socio de negocio en iDempiere ERP (PUT /api/v1/models/c_bpartner/{id})
+ */
+export async function updateCustomerInERP(id, customerData, session) {
+  const currentSession = session || getSession();
+  if (!currentSession?.token) {
+    throw new Error('No hay sesión activa en iDempiere ERP para sincronizar el cliente.');
+  }
+
+  const endpoint = `/api/v1/models/c_bpartner/${id}`;
+  const url = buildApiUrl(currentSession.baseUrl, endpoint, currentSession.proxyMode || PROXY_MODES.LOCAL);
+
+  const payload = {
+    Name: customerData.name,
+    TaxID: customerData.tax_id || '',
+    C_BP_Group_ID: { id: Number(customerData.group_id || 103) },
+    IsCustomer: customerData.is_customer !== false,
+    IsVendor: Boolean(customerData.is_vendor),
+    IsActive: customerData.is_active !== false
+  };
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${currentSession.token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = data.detail || data.title || data.message || `Error HTTP ${res.status}`;
+    throw new Error(`Error actualizando cliente en iDempiere ERP: ${errorMsg}`);
+  }
+
+  return data;
+}
+
 export default {
   syncSingleCatalog,
-  syncAllCatalogs
+  syncAllCatalogs,
+  createCustomerInERP,
+  updateCustomerInERP
 };

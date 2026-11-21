@@ -182,6 +182,31 @@ Este archivo establece las directivas técnicas, directrices de diseño, reglas 
   - **Depuración y Repoblación de Base de Datos SQLite**:
     - Script `server/scripts/sync-erp-products.js`: Autenticación en vivo contra `https://lunaerp.egssmart.com/`, vaciado de las tablas locales `products` y `product_categories` en `server/data/database.sqlite`, y repoblación íntegra con las 14 categorías y 55 productos oficiales de iDempiere.
   - Compilación y sincronización global exitosa con `npm run build:all`.
+- **2026-11-20 (v1.7)**:
+  - **Resolución de Error de Clave Foránea en Sincronización de Clientes (`C_BPartner`)**:
+    - Se diagnosticó que iDempiere ERP retorna socios vinculados a grupos (`C_BP_Group_ID: 105`, ej. "Staff") que no estaban previamente en la tabla `customer_categories` de SQLite. Al tener `PRAGMA foreign_keys = ON`, SQLite arrojaba `SQLITE_CONSTRAINT_FOREIGNKEY`.
+    - Se implementó un auto-upsert en `server/src/db.js` dentro de `syncCatalogFromERP('customers')`, de forma que cualquier grupo referenciado inexistente se inserta en `customer_categories` antes de registrar a los socios.
+    - En `idempiereSyncService.js`, se añadió pre-consulta y carga de `c_bp_group` antes de procesar `c_bpartner`.
+  - **Sincronización Inmediata al Crear Nuevos Clientes en la App hacia iDempiere ERP**:
+    - Creación de las funciones `createCustomerInERP` y `updateCustomerInERP` en `apps/admin/src/services/idempiereSyncService.js` interactuando contra `POST /api/v1/models/c_bpartner`.
+    - En `CustomersView.jsx`, al registrar un nuevo cliente, se envía inmediatamente la petición REST a iDempiere ERP obteniendo el `id` oficial generado por el ERP, y se persiste localmente en SQLite con dicha clave primaria oficial.
+  - **Purga de Categoría y Hamburguesas de Autor de la Base de Datos SQLite**:
+    - Se eliminó el sembrado estático de las 10 hamburguesas y las categorías 1001/1002 en `server/src/db.js`.
+    - Se limpió la base de datos SQLite eliminando la categoría y los 10 productos de autor, consolidando las 14 categorías y 55 productos 100% provenientes de iDempiere ERP.
+  - **Actualización de Nombres y Estructura del Sidebar (`SidebarNavbar.jsx`)**:
+    - Se eliminó "Primeros pasos" (y su contador 1/5).
+    - Se conservó "Inicio".
+    - "Contactos" se renombró a "Clientes".
+    - "Ventas" se renombró a "Pedidos".
+    - "Compras" se renombró a "Categoria de Productos".
+    - "Inventario" se renombró a "Productos".
+    - "Finanzas" se renombró a "Impuestos".
+    - Se conservó "Configuración".
+  - **Blindaje contra Pantallas en Blanco / Negras con ErrorBoundary Global y Manejo Defensivo**:
+    - Creación de `ErrorBoundary.jsx` en `apps/admin/src/components/ErrorBoundary.jsx` y envoltura de `<App />` en `App.jsx` y `main.jsx`.
+    - Prevención de desmonte completo de React: en caso de error o sesion corrupta, se renderiza una pantalla descriptiva con botón de 1-clic "Limpiar Sesión y Reintentar".
+    - Blindaje de nombres de usuario y sesiones en `SidebarNavbar.jsx` (`rawUserName` defensivo).
+  - Compilación y sincronización global exitosa con `npm run build:all`.
 
 
 

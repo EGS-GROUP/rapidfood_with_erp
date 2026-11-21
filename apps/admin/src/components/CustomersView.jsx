@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { syncSingleCatalog } from '../services/idempiereSyncService';
+import { syncSingleCatalog, createCustomerInERP, updateCustomerInERP } from '../services/idempiereSyncService';
 
 export default function CustomersView({ session, onNotify }) {
   const [customers, setCustomers] = useState([]);
@@ -117,27 +117,70 @@ export default function CustomersView({ session, onNotify }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      let url = '/api/customers';
-      let method = 'POST';
+      if (!editingCustomer) {
+        // CREACIÓN DE NUEVO CLIENTE CON SINCRONIZACIÓN INMEDIATA A IDEMPIERE ERP
+        let erpId = null;
+        let erpRecord = null;
+        
+        // 1. Sincronizar inmediatamente al ERP si hay sesión activa
+        if (session?.token) {
+          try {
+            erpRecord = await createCustomerInERP(formData, session);
+            erpId = erpRecord?.id;
+          } catch (erpErr) {
+            console.error('Error sincronizando con iDempiere:', erpErr);
+            throw new Error(`Fallo al sincronizar con iDempiere ERP: ${erpErr.message}`);
+          }
+        }
 
-      if (editingCustomer) {
-        url = `/api/customers/${editingCustomer.id}`;
-        method = 'PUT';
-      }
+        // 2. Guardar en SQLite local (con el ID oficial asignado por iDempiere)
+        const localPayload = {
+          ...formData,
+          id: erpId || formData.id || undefined,
+          value: erpRecord?.Value || formData.value
+        };
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
+        const res = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(localPayload)
+        });
+        const data = await res.json();
 
-      if (data.success) {
-        if (onNotify) onNotify('success', data.message);
-        setShowModal(false);
-        loadData();
+        if (data.success) {
+          const successMsg = erpId
+            ? `¡Cliente creado y sincronizado inmediatamente en iDempiere ERP (#${erpId}) y SQLite!`
+            : 'Cliente registrado en SQLite local (inicie sesión en ERP para sincronizarlo).';
+          if (onNotify) onNotify('success', successMsg);
+          setShowModal(false);
+          loadData();
+        } else {
+          if (onNotify) onNotify('error', data.error);
+        }
       } else {
-        if (onNotify) onNotify('error', data.error);
+        // ACTUALIZACIÓN DE CLIENTE EXISTENTE
+        if (session?.token && editingCustomer.id) {
+          try {
+            await updateCustomerInERP(editingCustomer.id, formData, session);
+          } catch (erpErr) {
+            console.warn('Aviso sincronizando actualización con ERP:', erpErr.message);
+          }
+        }
+
+        const res = await fetch(`/api/customers/${editingCustomer.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          if (onNotify) onNotify('success', data.message);
+          setShowModal(false);
+          loadData();
+        } else {
+          if (onNotify) onNotify('error', data.error);
+        }
       }
     } catch (err) {
       if (onNotify) onNotify('error', err.message);

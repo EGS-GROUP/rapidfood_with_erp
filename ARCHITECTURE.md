@@ -261,7 +261,20 @@ rapidfood_with_erp/
 
 ---
 
-## 7. Despliegue y CI/CD con Dokploy
+## 7. Sincronización Inmediata y Resiliencia en Frontend
+
+### Sincronización Inmediata de Clientes hacia iDempiere ERP
+- A diferencia de los catálogos de solo lectura (`M_Product`, `M_Product_Category`, `C_Tax`), el catálogo de clientes (`C_BPartner`) admite altas desde el Panel de Administración.
+- Al crear un nuevo socio de negocio en la aplicación, se despacha inmediatamente una petición `POST /api/v1/models/c_bpartner` al ERP.
+- Al obtener una respuesta exitosa (`HTTP 201 Created`), la aplicación extrae el identificador numérico oficial (`id`) devuelto por el ERP y lo inserta en SQLite local como clave primaria definitiva, garantizando congruencia absoluta.
+
+### Tolerancia a Fallos y Prevención de Pantallas en Negro (ErrorBoundary)
+- Se incorporó un componente `ErrorBoundary` envolviendo la jerarquía completa del panel de administración (`apps/admin`).
+- En caso de presentarse una excepción no controlada o una estructura de sesión heredada inválida en `localStorage`, el sistema evita el desmonte total de React, mostrando una interfaz de recuperación que permite al usuario limpiar el almacenamiento local y recargar en 1 solo clic.
+
+---
+
+## 8. Despliegue y CI/CD con Dokploy
 
 El proyecto está preparado para compilación y despliegue automatizado mediante el `Dockerfile` raíz:
 1. **Etapa de Construcción:** Instala dependencias y compila cada frontend (`build:ecommerce`, `build:pwa`, `build:admin`).

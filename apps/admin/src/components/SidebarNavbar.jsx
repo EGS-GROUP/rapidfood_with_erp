@@ -178,7 +178,8 @@ export default function SidebarNavbar({
   };
 
   // Nombre de usuario para mostrar
-  const displayName = session?.userName ? session.userName.split('@')[0] : 'Monica Ruiz Sanc...';
+  const rawUserName = session?.userName ? String(session.userName) : '';
+  const displayName = rawUserName ? rawUserName.split('@')[0] : 'Monica Ruiz Sanc...';
   const roleName = session?.roleName || 'Demo';
   const initial = (displayName.charAt(0) || 'M').toUpperCase();
 
@@ -342,77 +343,6 @@ export default function SidebarNavbar({
           </div>
         )}
 
-        {/* Primeros Pasos */}
-        <div style={{ padding: isCollapsed ? '0' : '2px 8px', display: isCollapsed ? 'flex' : 'block', justifyContent: 'center' }}>
-          <button
-            type="button"
-            onClick={() => onSelectView('first-steps')}
-            title="Primeros pasos (1/5)"
-            style={{
-              display: 'flex',
-              width: isCollapsed ? '40px' : '100%',
-              height: isCollapsed ? '40px' : 'auto',
-              alignItems: 'center',
-              justifyContent: isCollapsed ? 'center' : 'flex-start',
-              gap: '10px',
-              padding: isCollapsed ? '0' : '6px 12px',
-              fontSize: '0.86rem',
-              borderRadius: isCollapsed ? '8px' : '6px',
-              border: 'none',
-              backgroundColor: activeView === 'first-steps' ? '#ffffff' : 'transparent',
-              color: activeView === 'first-steps' ? '#0f172a' : '#334155',
-              cursor: 'pointer',
-              position: 'relative',
-              boxShadow: activeView === 'first-steps' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.15s'
-            }}
-            onMouseEnter={(e) => { if (activeView !== 'first-steps') e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
-            onMouseLeave={(e) => { if (activeView !== 'first-steps') e.currentTarget.style.backgroundColor = 'transparent'; }}
-          >
-            <div style={{ color: activeView === 'first-steps' ? '#0f172a' : '#64748b', display: 'flex' }}>
-              <FirstStepsIcon />
-            </div>
-            {!isCollapsed && (
-              <>
-                <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  Primeros pasos
-                </span>
-                <span style={{
-                  borderRadius: '9999px',
-                  backgroundColor: '#e2e8f0',
-                  padding: '2px 6px',
-                  fontSize: '10px',
-                  fontWeight: '700',
-                  color: '#475569',
-                  lineHeight: 1
-                }}>
-                  1/5
-                </span>
-              </>
-            )}
-            {isCollapsed && (
-              <span style={{
-                position: 'absolute',
-                top: '2px',
-                right: '2px',
-                display: 'flex',
-                height: '16px',
-                minWidth: '16px',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '9999px',
-                padding: '0 3px',
-                fontSize: '10px',
-                fontWeight: '700',
-                backgroundColor: '#2563eb',
-                color: '#ffffff'
-              }}>
-                4
-              </span>
-            )}
-          </button>
-        </div>
-
         {/* Inicio (Home / Dashboard) */}
         <div style={{ padding: isCollapsed ? '0' : '2px 8px', display: isCollapsed ? 'flex' : 'block', justifyContent: 'center' }}>
           <button
@@ -497,12 +427,12 @@ export default function SidebarNavbar({
           </div>
         )}
 
-        {/* Contactos */}
+        {/* Clientes */}
         <div style={{ padding: isCollapsed ? '0' : '2px 8px', display: isCollapsed ? 'flex' : 'block', justifyContent: 'center' }}>
           <button
             type="button"
             onClick={() => onSelectView('erp_customers')}
-            title="Contactos (C_BPartner)"
+            title="Clientes"
             style={{
               display: 'flex',
               width: isCollapsed ? '40px' : '100%',
@@ -528,18 +458,18 @@ export default function SidebarNavbar({
             </div>
             {!isCollapsed && (
               <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                Contactos
+                Clientes
               </span>
             )}
           </button>
         </div>
 
-        {/* Ventas */}
+        {/* Pedidos */}
         <div style={{ padding: isCollapsed ? '0' : '2px 8px', display: isCollapsed ? 'flex' : 'block', justifyContent: 'center' }}>
           <button
             type="button"
             onClick={() => onSelectView('orders')}
-            title="Ventas (Bandeja de Pedidos & Precios)"
+            title="Pedidos"
             style={{
               display: 'flex',
               width: isCollapsed ? '40px' : '100%',
@@ -565,7 +495,7 @@ export default function SidebarNavbar({
               </div>
               {!isCollapsed && (
                 <span style={{ textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  Ventas
+                  Pedidos
                 </span>
               )}
             </div>
@@ -580,12 +510,12 @@ export default function SidebarNavbar({
           </div>
         )}
 
-        {/* Compras / Categorías */}
+        {/* Categoria de Productos */}
         <div style={{ padding: isCollapsed ? '0' : '2px 8px', display: isCollapsed ? 'flex' : 'block', justifyContent: 'center' }}>
           <button
             type="button"
             onClick={() => onSelectView('product_categories')}
-            title="Compras & Categorías de Productos"
+            title="Categoria de Productos"
             style={{
               display: 'flex',
               width: isCollapsed ? '40px' : '100%',
@@ -611,7 +541,7 @@ export default function SidebarNavbar({
               </div>
               {!isCollapsed && (
                 <span style={{ textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  Compras
+                  Categoria de Productos
                 </span>
               )}
             </div>
@@ -619,12 +549,12 @@ export default function SidebarNavbar({
           </button>
         </div>
 
-        {/* Inventario / Productos */}
+        {/* Productos */}
         <div style={{ padding: isCollapsed ? '0' : '2px 8px', display: isCollapsed ? 'flex' : 'block', justifyContent: 'center' }}>
           <button
             type="button"
             onClick={() => onSelectView('products')}
-            title="Inventario (Maestro M_Product)"
+            title="Productos"
             style={{
               display: 'flex',
               width: isCollapsed ? '40px' : '100%',
@@ -650,7 +580,7 @@ export default function SidebarNavbar({
               </div>
               {!isCollapsed && (
                 <span style={{ textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  Inventario
+                  Productos
                 </span>
               )}
             </div>
@@ -665,12 +595,12 @@ export default function SidebarNavbar({
           </div>
         )}
 
-        {/* Finanzas (Impuestos C_Tax & Tarifas) */}
+        {/* Impuestos */}
         <div style={{ padding: isCollapsed ? '0' : '2px 8px', display: isCollapsed ? 'flex' : 'block', justifyContent: 'center' }}>
           <button
             type="button"
             onClick={() => onSelectView('taxes')}
-            title="Finanzas (Impuestos C_Tax & Tarifas)"
+            title="Impuestos"
             style={{
               display: 'flex',
               width: isCollapsed ? '40px' : '100%',
@@ -696,7 +626,7 @@ export default function SidebarNavbar({
               </div>
               {!isCollapsed && (
                 <span style={{ textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  Finanzas
+                  Impuestos
                 </span>
               )}
             </div>
@@ -854,7 +784,7 @@ export default function SidebarNavbar({
           <button
             type="button"
             onClick={onLogout}
-            title={`${session?.userName || 'Monica Ruiz Sanchez'} - Clic para Salir`}
+            title={`${rawUserName || 'Monica Ruiz Sanchez'} - Clic para Salir`}
             style={{
               display: 'flex',
               width: '100%',
